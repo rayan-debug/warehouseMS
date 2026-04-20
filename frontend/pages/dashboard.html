@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WarehouseMS — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ── Sidebar ──────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">WM</div>
+      <span>WarehouseMS</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+
+      <div class="nav-item active" data-page="dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Dashboard
+      </div>
+
+      <div class="nav-section-label">Inventory</div>
+
+      <div class="nav-item" data-page="products">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        </svg>
+        Products
+      </div>
+
+      <div class="nav-item" data-page="inventory">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
+          <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        Inventory
+      </div>
+
+      <div class="nav-item" data-page="alerts">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        Alerts
+        <span class="nav-badge hidden" id="alertBadge">0</span>
+      </div>
+
+      <div class="nav-section-label">Sales</div>
+
+      <div class="nav-item" data-page="sales">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+        Sales
+      </div>
+
+      <div class="nav-item" data-page="new-sale">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+        New Sale
+      </div>
+
+      <div id="adminNav">
+        <div class="nav-section-label">Admin</div>
+        <div class="nav-item" data-page="users">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Users
+        </div>
+        <div class="nav-item" data-page="reports">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          </svg>
+          Reports
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="userAvatar">?</div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Loading…</div>
+          <div class="user-role" id="userRole">—</div>
+        </div>
+        <button class="btn-logout" onclick="logout()" title="Sign out">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Topbar ────────────────────────────────────────────── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="page-title" id="pageTitle">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost btn-sm" id="refreshBtn" title="Refresh">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Content ──────────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page-view active" id="page-dashboard">
+      <div class="stats-grid" id="statsGrid">
+        <!-- KPIs injected by JS -->
+        <div class="stat-card"><div class="stat-label">Total Products</div><div class="stat-value skeleton" style="height:36px;width:80px;"></div></div>
+        <div class="stat-card"><div class="stat-label">Low Stock</div><div class="stat-value skeleton" style="height:36px;width:60px;"></div></div>
+        <div class="stat-card"><div class="stat-label">Today's Revenue</div><div class="stat-value skeleton" style="height:36px;width:100px;"></div></div>
+        <div class="stat-card"><div class="stat-label">Monthly Revenue</div><div class="stat-value skeleton" style="height:36px;width:110px;"></div></div>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Top Moving Products</span>
+            <span style="font-size:0.75rem;color:var(--text-muted)">Last 30 days</span>
+          </div>
+          <div id="topProductsList">
+            <div class="skeleton" style="height:14px;margin-bottom:10px;"></div>
+            <div class="skeleton" style="height:14px;margin-bottom:10px;width:80%;"></div>
+            <div class="skeleton" style="height:14px;margin-bottom:10px;width:60%;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Alerts</span>
+            <a href="#" onclick="navigate('alerts')" style="font-size:0.78rem;color:var(--accent)">View all</a>
+          </div>
+          <div id="recentAlertsList">
+            <div class="skeleton" style="height:14px;margin-bottom:10px;"></div>
+            <div class="skeleton" style="height:14px;margin-bottom:10px;width:75%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCTS PAGE -->
+    <div class="page-view" id="page-products">
+      <div class="filter-bar">
+        <div class="search-input">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" class="form-control" id="productSearch" placeholder="Search products…">
+        </div>
+        <select class="form-control" id="categoryFilter" style="width:180px">
+          <option value="">All categories</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="lowStockFilter">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+          </svg>
+          Low Stock
+        </button>
+        <button class="btn btn-primary btn-sm admin-only" id="addProductBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add Product
+        </button>
+      </div>
+
+      <div class="card" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Threshold</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody">
+              <!-- filled by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY PAGE -->
+    <div class="page-view" id="page-inventory">
+      <div class="filter-bar">
+        <h3 style="font-size:0.9rem;font-weight:600;color:var(--text-secondary);flex:1">
+          Stock levels across all products
+        </h3>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Qty</th>
+                <th>Threshold</th>
+                <th>Expires</th>
+                <th>Last Updated</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALERTS PAGE -->
+    <div class="page-view" id="page-alerts">
+      <div class="filter-bar">
+        <button class="btn btn-ghost btn-sm" id="filterAllAlerts">All</button>
+        <button class="btn btn-ghost btn-sm" id="filterLowAlerts">Low Stock</button>
+        <button class="btn btn-ghost btn-sm" id="filterExpiryAlerts">Expiry</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" id="markAllReadBtn">Mark all read</button>
+      </div>
+      <div id="alertsList"></div>
+    </div>
+
+    <!-- SALES PAGE -->
+    <div class="page-view" id="page-sales">
+      <div class="card" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice #</th>
+                <th>Staff</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Date</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="salesTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- NEW SALE PAGE -->
+    <div class="page-view" id="page-new-sale">
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start;">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Add Items to Sale</span>
+          </div>
+          <div class="filter-bar" style="margin-bottom:16px">
+            <div class="search-input" style="flex:1">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input type="text" class="form-control" id="saleProductSearch" placeholder="Search product to add…">
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Available</th>
+                  <th>Unit Price</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="saleProductsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="position:sticky;top:88px">
+          <div class="card-header">
+            <span class="card-title">Current Sale</span>
+          </div>
+          <div id="cartItems" style="margin-bottom:20px;min-height:60px">
+            <p style="color:var(--text-muted);font-size:0.83rem;text-align:center;padding:20px 0">No items added yet</p>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="color:var(--text-secondary);font-size:0.85rem">Total</span>
+              <span class="mono" style="font-size:1.1rem;font-weight:700;color:var(--text-primary)" id="cartTotal">$0.00</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <input type="text" class="form-control" id="saleNotes" placeholder="Any notes for this sale…">
+          </div>
+          <button class="btn btn-primary" style="width:100%" id="processSaleBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Process Sale
+          </button>
+          <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" id="clearCartBtn">Clear cart</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS PAGE (admin only) -->
+    <div class="page-view" id="page-users">
+      <div class="filter-bar">
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" id="addUserBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add User
+        </button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th></th></tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS PAGE (admin only) -->
+    <div class="page-view" id="page-reports">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Monthly Sales Report</span>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:20px">
+            A full PDF summary of sales performance, top products, and low-stock items for the last 30 days.
+          </p>
+          <button class="btn btn-primary btn-sm" id="downloadSalesReportBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Add Product Modal ──────────────────────────────────── -->
+<div class="modal-backdrop" id="productModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="productModalTitle">Add Product</span>
+      <button class="modal-close" onclick="modal.close('productModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Product Name *</label>
+          <input type="text" class="form-control" id="pm_name" placeholder="e.g. Full Fat Milk 1L">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Description</label>
+          <input type="text" class="form-control" id="pm_description" placeholder="Short description…">
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select class="form-control" id="pm_category"></select>
+        </div>
+        <div class="form-group">
+          <label>Price ($)</label>
+          <input type="number" class="form-control" id="pm_price" value="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Initial Quantity</label>
+          <input type="number" class="form-control" id="pm_quantity" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Low Stock Threshold</label>
+          <input type="number" class="form-control" id="pm_threshold" value="10" min="1">
+        </div>
+        <div class="form-group">
+          <label>Expiry Date</label>
+          <input type="date" class="form-control" id="pm_expiry">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="modal.close('productModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="saveProductBtn">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Stock Modal ────────────────────────────────────── -->
+<div class="modal-backdrop" id="stockModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <span class="modal-title">Add Stock</span>
+      <button class="modal-close" onclick="modal.close('stockModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
+        Adding stock to: <strong id="stockProductName" style="color:var(--text-primary)"></strong>
+      </p>
+      <input type="hidden" id="stockProductId">
+      <div class="form-group">
+        <label>Quantity to Add *</label>
+        <input type="number" class="form-control" id="stockQty" min="1" value="1">
+      </div>
+      <div class="form-group">
+        <label>New Expiry Date (optional)</label>
+        <input type="date" class="form-control" id="stockExpiry">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="modal.close('stockModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="confirmAddStockBtn">Add Stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add User Modal ─────────────────────────────────────── -->
+<div class="modal-backdrop" id="userModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Create Staff Account</span>
+      <button class="modal-close" onclick="modal.close('userModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" class="form-control" id="um_name" placeholder="Jane Smith">
+      </div>
+      <div class="form-group">
+        <label>Email *</label>
+        <input type="email" class="form-control" id="um_email" placeholder="jane@company.com">
+      </div>
+      <div class="form-group">
+        <label>Password *</label>
+        <input type="password" class="form-control" id="um_password" placeholder="Min 8 chars, 1 upper, 1 number">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select class="form-control" id="um_role">
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="modal.close('userModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="saveUserBtn">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Sale Item Modal ────────────────────────────────── -->
+<div class="modal-backdrop" id="addToCartModal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <span class="modal-title">Add to Sale</span>
+      <button class="modal-close" onclick="modal.close('addToCartModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
+        <strong id="atcProductName" style="color:var(--text-primary)"></strong>
+      </p>
+      <input type="hidden" id="atcProductId">
+      <input type="hidden" id="atcMaxQty">
+      <div class="form-group">
+        <label>Quantity *</label>
+        <input type="number" class="form-control" id="atcQty" min="1" value="1">
+        <span id="atcAvailable" style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;display:block"></span>
+      </div>
+      <div class="form-group">
+        <label>Unit Price</label>
+        <div class="form-control" id="atcPriceDisplay" style="background:transparent;cursor:default;color:var(--text-secondary)">—</div>
+        <input type="hidden" id="atcPrice">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="modal.close('addToCartModal')">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="confirmAddToCartBtn">Add to Sale</button>
+    </div>
+  </div>
+</div>
+
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/ui.js"></script>
+<script src="../assets/js/dashboard.js"></script>
+</body>
+</html>
