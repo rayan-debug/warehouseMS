@@ -102,7 +102,7 @@
           <div class="user-name" id="userName">Loading…</div>
           <div class="user-role" id="userRole">—</div>
         </div>
-        <button class="btn-logout" onclick="logout()" title="Sign out">
+        <button class="btn-logout" id="logoutBtn" title="Sign out">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
@@ -156,7 +156,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title">Recent Alerts</span>
-            <a href="#" onclick="navigate('alerts')" style="font-size:0.78rem;color:var(--accent)">View all</a>
+            <a href="#" id="viewAllAlertsBtn" style="font-size:0.78rem;color:var(--accent)">View all</a>
           </div>
           <div id="recentAlertsList">
             <div class="skeleton" style="height:14px;margin-bottom:10px;"></div>
@@ -385,7 +385,7 @@
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="productModalTitle">Add Product</span>
-      <button class="modal-close" onclick="modal.close('productModal')">✕</button>
+      <button class="modal-close" data-close-modal="productModal">✕</button>
     </div>
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -431,7 +431,7 @@
   <div class="modal" style="max-width:380px">
     <div class="modal-header">
       <span class="modal-title">Add Stock</span>
-      <button class="modal-close" onclick="modal.close('stockModal')">✕</button>
+      <button class="modal-close" data-close-modal="stockModal">✕</button>
     </div>
     <div class="modal-body">
       <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
@@ -459,7 +459,7 @@
   <div class="modal" style="max-width:420px">
     <div class="modal-header">
       <span class="modal-title">Create Staff Account</span>
-      <button class="modal-close" onclick="modal.close('userModal')">✕</button>
+      <button class="modal-close" data-close-modal="userModal">✕</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -494,7 +494,7 @@
   <div class="modal" style="max-width:360px">
     <div class="modal-header">
       <span class="modal-title">Add to Sale</span>
-      <button class="modal-close" onclick="modal.close('addToCartModal')">✕</button>
+      <button class="modal-close" data-close-modal="addToCartModal">✕</button>
     </div>
     <div class="modal-body">
       <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
