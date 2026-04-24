@@ -1,6 +1,8 @@
 const express = require('express');
+const { param } = require('express-validator');
 const { pool, query } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { generateInvoicePdf } = require('../services/pdfService');
 const { ensureAlert } = require('../services/alertService');
 
@@ -8,19 +10,55 @@ const router = express.Router();
 
 const clientError = (msg) => Object.assign(new Error(msg), { statusCode: 400 });
 
+function parsePage(q) {
+  const page  = Math.max(1, parseInt(q.page,  10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 50));
+  return { page, limit, offset: (page - 1) * limit };
+}
+
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { rows } = await query(`
-      SELECT s.id, s.user_id, u.name AS user_name,
-             s.total_amount, s.notes, s.created_at,
-             COUNT(si.id)::int AS items
-      FROM sales s
-      JOIN users u ON u.id = s.user_id
-      LEFT JOIN sale_items si ON si.sale_id = s.id
-      GROUP BY s.id, u.name
-      ORDER BY s.created_at DESC
-    `);
-    return res.json({ success: true, sales: rows });
+    const { page, limit, offset } = parsePage(req.query);
+    const [{ rows }, { rows: [{ count }] }] = await Promise.all([
+      query(`
+        SELECT s.id, s.user_id, u.name AS user_name,
+               s.total_amount, s.notes, s.created_at,
+               COUNT(si.id)::int AS items
+        FROM sales s
+        JOIN users u ON u.id = s.user_id
+        LEFT JOIN sale_items si ON si.sale_id = s.id
+        GROUP BY s.id, u.name
+        ORDER BY s.created_at DESC
+        LIMIT $1 OFFSET $2
+      `, [limit, offset]),
+      query('SELECT COUNT(*)::int AS count FROM sales'),
+    ]);
+    return res.json({
+      success: true,
+      sales: rows,
+      pagination: { page, limit, total: count, pages: Math.ceil(count / limit) },
+    });
+  } catch (err) {
+    return next(err);
+  }
+});
+
+router.get('/:id', authenticate, [
+  param('id').isInt({ gt: 0 }).withMessage('Sale ID must be a positive integer.'),
+], validate, async (req, res, next) => {
+  try {
+    const { rows: [sale] } = await query(
+      `SELECT s.*, u.name AS user_name FROM sales s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
+      [req.params.id]
+    );
+    if (!sale) return res.status(404).json({ success: false, message: 'Sale not found.' });
+    const { rows: items } = await query(
+      `SELECT si.*, p.name AS product_name
+       FROM sale_items si JOIN products p ON p.id = si.product_id
+       WHERE si.sale_id = $1`,
+      [req.params.id]
+    );
+    return res.json({ success: true, sale: { ...sale, items } });
   } catch (err) {
     return next(err);
   }
@@ -109,15 +147,15 @@ router.post('/', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/:id/invoice', authenticate, async (req, res, next) => {
+router.get('/:id/invoice', authenticate, [
+  param('id').isInt({ gt: 0 }).withMessage('Sale ID must be a positive integer.'),
+], validate, async (req, res, next) => {
   try {
     const { rows: [sale] } = await query(
       `SELECT s.*, u.name AS user_name FROM sales s JOIN users u ON u.id = s.user_id WHERE s.id = $1`,
       [req.params.id]
     );
-    if (!sale) {
-      return res.status(404).json({ success: false, message: 'Sale not found.' });
-    }
+    if (!sale) return res.status(404).json({ success: false, message: 'Sale not found.' });
     const { rows: saleItems } = await query(
       `SELECT si.*, p.name AS product_name
        FROM sale_items si JOIN products p ON p.id = si.product_id

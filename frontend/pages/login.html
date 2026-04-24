@@ -455,8 +455,9 @@
 
         if (!res.ok) throw new Error(data.message || 'Login failed.');
 
-        localStorage.setItem('wms_token', data.token);
-        localStorage.setItem('wms_user',  JSON.stringify(data.user));
+        localStorage.setItem('wms_token',         data.token);
+        localStorage.setItem('wms_refresh_token', data.refreshToken || '');
+        localStorage.setItem('wms_user',           JSON.stringify(data.user));
         window.location.href = 'dashboard.html';
       } catch (err) {
         showGlobalError(err.message);

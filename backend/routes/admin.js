@@ -1,7 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { body } = require('express-validator');
 const db = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 const { generateSalesReportPdf } = require('../services/pdfService');
 
 const router = express.Router();
@@ -64,18 +66,23 @@ router.get('/users', async (req, res, next) => {
   }
 });
 
-router.post('/users', async (req, res, next) => {
+router.post('/users', [
+  body('name').trim().notEmpty().withMessage('Name is required.'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required.'),
+  body('password')
+    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters.')
+    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter.')
+    .matches(/[0-9]/).withMessage('Password must contain at least one number.'),
+  body('role').optional().isIn(['admin', 'staff']).withMessage('Role must be "admin" or "staff".'),
+], validate, async (req, res, next) => {
   const { name, email, password, role } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
-  }
   try {
     const hash = await bcrypt.hash(password, 10);
     const { rows } = await db.query(
       `INSERT INTO users (name, email, password, role)
        VALUES ($1, $2, $3, $4)
        RETURNING id, name, email, role, created_at`,
-      [name, email.toLowerCase(), hash, role || 'staff']
+      [name, email, hash, role || 'staff']
     );
     return res.status(201).json({ success: true, user: rows[0] });
   } catch (err) {
@@ -92,9 +99,7 @@ router.delete('/users/:id', async (req, res, next) => {
   }
   try {
     const { rowCount } = await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
-    if (!rowCount) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
-    }
+    if (!rowCount) return res.status(404).json({ success: false, message: 'User not found.' });
     return res.json({ success: true, message: 'User deleted.' });
   } catch (err) {
     return next(err);

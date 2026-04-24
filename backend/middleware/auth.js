@@ -1,14 +1,20 @@
 const jwt = require('jsonwebtoken');
 
+const accessSecret  = () => process.env.JWT_SECRET          || 'warehousems-dev-secret';
+const refreshSecret = () => process.env.JWT_REFRESH_SECRET  || process.env.JWT_SECRET || 'warehousems-dev-refresh';
+
 function signToken(user) {
   return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      name: user.name,
-    },
-    process.env.JWT_SECRET || 'warehousems-dev-secret',
+    { id: user.id, email: user.email, role: user.role, name: user.name },
+    accessSecret(),
+    { expiresIn: '1h' }
+  );
+}
+
+function signRefreshToken(user) {
+  return jwt.sign(
+    { id: user.id, type: 'refresh' },
+    refreshSecret(),
     { expiresIn: '7d' }
   );
 }
@@ -22,9 +28,9 @@ function authenticate(req, res, next) {
   }
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'warehousems-dev-secret');
+    req.user = jwt.verify(token, accessSecret());
     return next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
   }
 }
@@ -41,8 +47,4 @@ function authorize(...roles) {
   };
 }
 
-module.exports = {
-  authenticate,
-  authorize,
-  signToken,
-};
+module.exports = { authenticate, authorize, signToken, signRefreshToken, refreshSecret };

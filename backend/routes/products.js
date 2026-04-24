@@ -1,6 +1,8 @@
 const express = require('express');
+const { body, param } = require('express-validator');
 const { pool, query } = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -21,20 +23,53 @@ const PRODUCT_SQL = `
   LEFT JOIN inventory  i ON i.product_id = p.id
 `;
 
+function parsePage(q) {
+  const page  = Math.max(1, parseInt(q.page,  10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 100));
+  return { page, limit, offset: (page - 1) * limit };
+}
+
+const productFields = [
+  body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a non-negative number.'),
+  body('quantity').optional().isInt({ min: 0 }).withMessage('Quantity must be a non-negative integer.'),
+  body('threshold').optional().isInt({ min: 1 }).withMessage('Threshold must be at least 1.'),
+  body('expiry_date').optional({ nullable: true }).isISO8601().withMessage('expiry_date must be a valid date (YYYY-MM-DD).'),
+];
+
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { rows } = await query(`${PRODUCT_SQL} ORDER BY p.id`);
-    return res.json({ success: true, products: rows });
+    const { page, limit, offset } = parsePage(req.query);
+    const [{ rows }, { rows: [{ count }] }] = await Promise.all([
+      query(`${PRODUCT_SQL} ORDER BY p.id LIMIT $1 OFFSET $2`, [limit, offset]),
+      query('SELECT COUNT(*)::int AS count FROM products'),
+    ]);
+    return res.json({
+      success: true,
+      products: rows,
+      pagination: { page, limit, total: count, pages: Math.ceil(count / limit) },
+    });
   } catch (err) {
     return next(err);
   }
 });
 
-router.post('/', authenticate, authorize('admin'), async (req, res, next) => {
-  const { name, description, category_id, price, quantity, threshold, expiry_date } = req.body;
-  if (!name) {
-    return res.status(400).json({ success: false, message: 'Product name is required.' });
+router.get('/:id', authenticate, [
+  param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
+], validate, async (req, res, next) => {
+  try {
+    const { rows } = await query(`${PRODUCT_SQL} WHERE p.id = $1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Product not found.' });
+    return res.json({ success: true, product: rows[0] });
+  } catch (err) {
+    return next(err);
   }
+});
+
+router.post('/', authenticate, authorize('admin'), [
+  body('name').trim().notEmpty().withMessage('Product name is required.'),
+  ...productFields,
+], validate, async (req, res, next) => {
+  const { name, description, category_id, price, quantity, threshold, expiry_date } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -59,7 +94,10 @@ router.post('/', authenticate, authorize('admin'), async (req, res, next) => {
   }
 });
 
-router.put('/:id', authenticate, authorize('admin'), async (req, res, next) => {
+router.put('/:id', authenticate, authorize('admin'), [
+  param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
+  ...productFields,
+], validate, async (req, res, next) => {
   const { name, description, category_id, price, quantity, threshold, expiry_date } = req.body;
   const { id } = req.params;
   const client = await pool.connect();
@@ -81,9 +119,9 @@ router.put('/:id', authenticate, authorize('admin'), async (req, res, next) => {
     if (quantity != null || threshold != null || expiry_date !== undefined) {
       const setClauses = [];
       const params = [];
-      if (quantity != null) { params.push(Number(quantity)); setClauses.push(`quantity = $${params.length}`); }
-      if (threshold != null) { params.push(Number(threshold)); setClauses.push(`threshold = $${params.length}`); }
-      if (expiry_date !== undefined) { params.push(expiry_date || null); setClauses.push(`expiry_date = $${params.length}`); }
+      if (quantity != null)          { params.push(Number(quantity));      setClauses.push(`quantity = $${params.length}`); }
+      if (threshold != null)         { params.push(Number(threshold));     setClauses.push(`threshold = $${params.length}`); }
+      if (expiry_date !== undefined) { params.push(expiry_date || null);   setClauses.push(`expiry_date = $${params.length}`); }
       setClauses.push('last_updated = NOW()');
       params.push(id);
       await client.query(
@@ -102,12 +140,12 @@ router.put('/:id', authenticate, authorize('admin'), async (req, res, next) => {
   }
 });
 
-router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) => {
+router.delete('/:id', authenticate, authorize('admin'), [
+  param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
+], validate, async (req, res, next) => {
   try {
     const { rowCount } = await query('DELETE FROM products WHERE id = $1', [req.params.id]);
-    if (!rowCount) {
-      return res.status(404).json({ success: false, message: 'Product not found.' });
-    }
+    if (!rowCount) return res.status(404).json({ success: false, message: 'Product not found.' });
     return res.json({ success: true, message: 'Product deleted.' });
   } catch (err) {
     return next(err);

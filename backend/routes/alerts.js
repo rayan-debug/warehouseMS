@@ -12,13 +12,31 @@ const ALERT_SQL = `
   JOIN products  p ON p.id = i.product_id
 `;
 
+function parsePage(q) {
+  const page  = Math.max(1, parseInt(q.page,  10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 50));
+  return { page, limit, offset: (page - 1) * limit };
+}
+
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { type } = req.query;
-    const { rows } = type
-      ? await db.query(`${ALERT_SQL} WHERE a.type = $1 ORDER BY a.created_at DESC`, [type])
-      : await db.query(`${ALERT_SQL} ORDER BY a.created_at DESC`);
-    return res.json({ success: true, alerts: rows });
+    const { page, limit, offset } = parsePage(req.query);
+
+    const [{ rows }, { rows: [{ count }] }] = await Promise.all([
+      type
+        ? db.query(`${ALERT_SQL} WHERE a.type = $1 ORDER BY a.created_at DESC LIMIT $2 OFFSET $3`, [type, limit, offset])
+        : db.query(`${ALERT_SQL} ORDER BY a.created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]),
+      type
+        ? db.query('SELECT COUNT(*)::int AS count FROM alerts WHERE type = $1', [type])
+        : db.query('SELECT COUNT(*)::int AS count FROM alerts'),
+    ]);
+
+    return res.json({
+      success: true,
+      alerts: rows,
+      pagination: { page, limit, total: count, pages: Math.ceil(count / limit) },
+    });
   } catch (err) {
     return next(err);
   }
@@ -40,9 +58,7 @@ router.patch('/:id/read', authenticate, async (req, res, next) => {
        RETURNING id, inventory_id, type, message, is_read, created_at`,
       [req.params.id]
     );
-    if (!rows[0]) {
-      return res.status(404).json({ success: false, message: 'Alert not found.' });
-    }
+    if (!rows[0]) return res.status(404).json({ success: false, message: 'Alert not found.' });
     return res.json({ success: true, alert: rows[0] });
   } catch (err) {
     return next(err);
