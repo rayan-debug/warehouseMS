@@ -9,6 +9,7 @@
     users: [],
     cart: [],
     activePage: 'dashboard',
+    alertFilter: '',
     lowStockOnly: false,
     productSearch: '',
     saleSearch: '',

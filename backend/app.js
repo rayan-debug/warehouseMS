@@ -55,7 +55,7 @@ app.use('/api/auth', rateLimit({
 }));
 
 app.use(express.static(path.join(__dirname, '../frontend/pages')));
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 app.get('/api/health', (req, res) => {
   res.json({

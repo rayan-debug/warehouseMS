@@ -490,6 +490,11 @@
       spinner.style.display = loading ? 'block' : 'none';
     }
 
+    // ── Google button ─────────────────────────────────────────
+    document.getElementById('googleLoginBtn').addEventListener('click', () => {
+      showGlobalError('Google sign-in is not configured for this installation. Use email and password instead.');
+    });
+
     // Redirect if already logged in
     if (localStorage.getItem('wms_token')) {
       window.location.href = 'dashboard.html';

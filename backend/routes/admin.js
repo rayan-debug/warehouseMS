@@ -87,6 +87,9 @@ router.post('/users', async (req, res, next) => {
 });
 
 router.delete('/users/:id', async (req, res, next) => {
+  if (String(req.params.id) === String(req.user.id)) {
+    return res.status(400).json({ success: false, message: 'You cannot delete your own account.' });
+  }
   try {
     const { rowCount } = await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
     if (!rowCount) {

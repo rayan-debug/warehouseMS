@@ -79,16 +79,16 @@ router.put('/:id', authenticate, authorize('admin'), async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
     if (quantity != null || threshold != null || expiry_date !== undefined) {
+      const setClauses = [];
+      const params = [];
+      if (quantity != null) { params.push(Number(quantity)); setClauses.push(`quantity = $${params.length}`); }
+      if (threshold != null) { params.push(Number(threshold)); setClauses.push(`threshold = $${params.length}`); }
+      if (expiry_date !== undefined) { params.push(expiry_date || null); setClauses.push(`expiry_date = $${params.length}`); }
+      setClauses.push('last_updated = NOW()');
+      params.push(id);
       await client.query(
-        `UPDATE inventory
-         SET quantity     = COALESCE($1, quantity),
-             threshold    = COALESCE($2, threshold),
-             expiry_date  = COALESCE($3, expiry_date),
-             last_updated = NOW()
-         WHERE product_id = $4`,
-        [quantity != null ? Number(quantity) : null,
-         threshold != null ? Number(threshold) : null,
-         expiry_date || null, id]
+        `UPDATE inventory SET ${setClauses.join(', ')} WHERE product_id = $${params.length}`,
+        params
       );
     }
     await client.query('COMMIT');
