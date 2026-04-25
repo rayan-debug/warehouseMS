@@ -378,28 +378,35 @@
       threshold: Number($('pm_threshold').value || 10),
       expiry_date: $('pm_expiry').value || null,
     };
-    if (!payload.name) {
-      toast('Product name is required.', 'error');
-      return;
+    if (!payload.name) { toast('Product name is required.', 'error'); return; }
+    try {
+      await apiRequest(productId ? `/products/${productId}` : '/products', {
+        method: productId ? 'PUT' : 'POST',
+        body: JSON.stringify(payload),
+      });
+      modal.close('productModal');
+      toast(`Product ${productId ? 'updated' : 'created'}.`);
+      await refreshAll();
+    } catch (err) {
+      toast(err.message || 'Failed to save product.', 'error');
     }
-    await apiRequest(productId ? `/products/${productId}` : '/products', {
-      method: productId ? 'PUT' : 'POST',
-      body: JSON.stringify(payload),
-    });
-    modal.close('productModal');
-    toast(`Product ${productId ? 'updated' : 'created'}.`);
-    await refreshAll();
   }
 
   async function saveStock() {
     const id = $('stockProductId').value;
-    await apiRequest(`/inventory/${id}/stock`, {
-      method: 'POST',
-      body: JSON.stringify({ quantity: Number($('stockQty').value || 0), expiry_date: $('stockExpiry').value || null }),
-    });
-    modal.close('stockModal');
-    toast('Stock added.');
-    await refreshAll();
+    const qty = Number($('stockQty').value || 0);
+    if (!qty || qty <= 0) { toast('Enter a positive quantity.', 'error'); return; }
+    try {
+      await apiRequest(`/inventory/${id}/stock`, {
+        method: 'POST',
+        body: JSON.stringify({ quantity: qty, expiry_date: $('stockExpiry').value || null }),
+      });
+      modal.close('stockModal');
+      toast('Stock added.');
+      await refreshAll();
+    } catch (err) {
+      toast(err.message || 'Failed to add stock.', 'error');
+    }
   }
 
   function openAdjustModal(inventoryId, productName) {
@@ -416,28 +423,47 @@
     const reason = $('adjustReason').value.trim();
     if (!adjustment) { toast('Adjustment cannot be zero.', 'error'); return; }
     if (!reason) { toast('Reason is required.', 'error'); return; }
-    await apiRequest(`/inventory/${id}/adjust`, {
-      method: 'POST',
-      body: JSON.stringify({ adjustment, reason }),
-    });
-    modal.close('adjustModal');
-    toast('Stock corrected.');
-    await refreshAll();
+    try {
+      await apiRequest(`/inventory/${id}/adjust`, {
+        method: 'POST',
+        body: JSON.stringify({ adjustment, reason }),
+      });
+      modal.close('adjustModal');
+      toast('Stock corrected.');
+      await refreshAll();
+    } catch (err) {
+      toast(err.message || 'Failed to apply correction.', 'error');
+    }
   }
 
   async function saveUser() {
-    await apiRequest('/admin/users', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: $('um_name').value.trim(),
-        email: $('um_email').value.trim(),
-        password: $('um_password').value,
-        role: $('um_role').value,
-      }),
-    });
-    modal.close('userModal');
-    toast('User created.');
-    await loadUsers();
+    const name     = $('um_name').value.trim();
+    const email    = $('um_email').value.trim();
+    const password = $('um_password').value;
+    const role     = $('um_role').value;
+
+    if (!name)     { toast('Name is required.', 'error'); return; }
+    if (!email)    { toast('Email is required.', 'error'); return; }
+    if (!password) { toast('Password is required.', 'error'); return; }
+    if (password.length < 8)          { toast('Password must be at least 8 characters.', 'error'); return; }
+    if (!/[A-Z]/.test(password))      { toast('Password must contain at least one uppercase letter.', 'error'); return; }
+    if (!/[0-9]/.test(password))      { toast('Password must contain at least one number.', 'error'); return; }
+
+    try {
+      await apiRequest('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role }),
+      });
+      modal.close('userModal');
+      $('um_name').value = '';
+      $('um_email').value = '';
+      $('um_password').value = '';
+      $('um_role').value = 'staff';
+      toast('User created successfully.');
+      await loadUsers();
+    } catch (err) {
+      toast(err.message || 'Failed to create user.', 'error');
+    }
   }
 
   async function addToCart() {
@@ -464,17 +490,21 @@
       toast('Add at least one item first.', 'error');
       return;
     }
-    await apiRequest('/sales', {
-      method: 'POST',
-      body: JSON.stringify({
-        items: state.cart.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
-        notes: $('saleNotes').value.trim(),
-      }),
-    });
-    state.cart = [];
-    $('saleNotes').value = '';
-    toast('Sale completed.');
-    await refreshAll();
+    try {
+      await apiRequest('/sales', {
+        method: 'POST',
+        body: JSON.stringify({
+          items: state.cart.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+          notes: $('saleNotes').value.trim(),
+        }),
+      });
+      state.cart = [];
+      $('saleNotes').value = '';
+      toast('Sale completed.');
+      await refreshAll();
+    } catch (err) {
+      toast(err.message || 'Failed to process sale.', 'error');
+    }
   }
 
   async function downloadInvoice(id) {
@@ -512,17 +542,25 @@
   }
 
   async function removeProduct(id) {
-    if (!confirm('Delete this product?')) return;
-    await apiRequest(`/products/${id}`, { method: 'DELETE' });
-    toast('Product deleted.');
-    await refreshAll();
+    if (!confirm('Delete this product? This cannot be undone.')) return;
+    try {
+      await apiRequest(`/products/${id}`, { method: 'DELETE' });
+      toast('Product deleted.');
+      await refreshAll();
+    } catch (err) {
+      toast(err.message || 'Failed to delete product.', 'error');
+    }
   }
 
   async function removeUser(id) {
-    if (!confirm('Delete this user?')) return;
-    await apiRequest(`/admin/users/${id}`, { method: 'DELETE' });
-    toast('User deleted.');
-    await loadUsers();
+    if (!confirm('Delete this user? This cannot be undone.')) return;
+    try {
+      await apiRequest(`/admin/users/${id}`, { method: 'DELETE' });
+      toast('User deleted.');
+      await loadUsers();
+    } catch (err) {
+      toast(err.message || 'Failed to delete user.', 'error');
+    }
   }
 
   async function markAlertRead(id) {
