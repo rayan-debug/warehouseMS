@@ -3,6 +3,7 @@ const { body, param } = require('express-validator');
 const { pool, query } = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { logActivity } = require('../services/activityLogger');
 
 const router = express.Router();
 
@@ -85,6 +86,7 @@ router.post('/', authenticate, authorize('admin'), [
     );
     await client.query('COMMIT');
     const { rows } = await query(`${PRODUCT_SQL} WHERE p.id = $1`, [productId]);
+    logActivity(req.user.id, 'Created product', `"${name}"`);
     return res.status(201).json({ success: true, product: rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -131,6 +133,7 @@ router.put('/:id', authenticate, authorize('admin'), [
     }
     await client.query('COMMIT');
     const { rows } = await query(`${PRODUCT_SQL} WHERE p.id = $1`, [id]);
+    logActivity(req.user.id, 'Updated product', `"${rows[0]?.name ?? id}"`);
     return res.json({ success: true, product: rows[0] });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -144,8 +147,10 @@ router.delete('/:id', authenticate, authorize('admin'), [
   param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
 ], validate, async (req, res, next) => {
   try {
+    const { rows: [prod] } = await query('SELECT name FROM products WHERE id = $1', [req.params.id]);
     const { rowCount } = await query('DELETE FROM products WHERE id = $1', [req.params.id]);
     if (!rowCount) return res.status(404).json({ success: false, message: 'Product not found.' });
+    logActivity(req.user.id, 'Deleted product', `"${prod?.name ?? req.params.id}"`);
     return res.json({ success: true, message: 'Product deleted.' });
   } catch (err) {
     return next(err);

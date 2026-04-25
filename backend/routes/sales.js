@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { generateInvoicePdf } = require('../services/pdfService');
 const { ensureAlert } = require('../services/alertService');
+const { logActivity } = require('../services/activityLogger');
 
 const router = express.Router();
 
@@ -135,6 +136,7 @@ router.post('/', authenticate, async (req, res, next) => {
       [sale.id]
     );
 
+    logActivity(req.user.id, 'Processed sale', `Sale #${sale.id} — ${validated.length} item(s), total $${totalAmount.toFixed(2)}`);
     return res.status(201).json({ success: true, sale: { ...detail, items: saleItems } });
   } catch (err) {
     await client.query('ROLLBACK');

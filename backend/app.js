@@ -16,6 +16,7 @@ const salesRoutes = require('./routes/sales');
 const alertRoutes = require('./routes/alerts');
 const adminRoutes = require('./routes/admin');
 const categoryRoutes = require('./routes/categories');
+const activityRoutes = require('./routes/activity');
 
 const app = express();
 
@@ -75,6 +76,7 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/activity', activityRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

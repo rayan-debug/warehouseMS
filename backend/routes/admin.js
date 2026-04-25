@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { generateSalesReportPdf } = require('../services/pdfService');
+const { logActivity } = require('../services/activityLogger');
 
 const router = express.Router();
 
@@ -84,6 +85,7 @@ router.post('/users', [
        RETURNING id, name, email, role, created_at`,
       [name, email, hash, role || 'staff']
     );
+    logActivity(req.user.id, 'Created user', `${rows[0].email} (${rows[0].role})`);
     return res.status(201).json({ success: true, user: rows[0] });
   } catch (err) {
     if (err.code === '23505') {
@@ -98,8 +100,10 @@ router.delete('/users/:id', async (req, res, next) => {
     return res.status(400).json({ success: false, message: 'You cannot delete your own account.' });
   }
   try {
+    const { rows: [target] } = await db.query('SELECT email, role FROM users WHERE id = $1', [req.params.id]);
     const { rowCount } = await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
     if (!rowCount) return res.status(404).json({ success: false, message: 'User not found.' });
+    logActivity(req.user.id, 'Deleted user', `${target?.email} (${target?.role})`);
     return res.json({ success: true, message: 'User deleted.' });
   } catch (err) {
     return next(err);

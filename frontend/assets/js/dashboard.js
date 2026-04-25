@@ -12,7 +12,10 @@
     alertFilter: '',
     lowStockOnly: false,
     productSearch: '',
+    productCategoryFilter: '',
     saleSearch: '',
+    activityPage: 1,
+    activityUserFilter: '',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -53,9 +56,7 @@
     document.querySelectorAll('.page-view').forEach((view) => view.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.page === page));
     const target = byPage(page);
-    if (target) {
-      target.classList.add('active');
-    }
+    if (target) target.classList.add('active');
     const titles = {
       dashboard: 'Dashboard',
       products: 'Products',
@@ -65,8 +66,10 @@
       'new-sale': 'New Sale',
       users: 'Users',
       reports: 'Reports',
+      activity: 'Activity Log',
     };
     $('pageTitle').textContent = titles[page] || 'WarehouseMS';
+    if (page === 'activity') loadActivity(1);
   }
 
   async function loadBootData() {
@@ -78,6 +81,7 @@
     state.categories = categories.categories || [];
     populateCategoryFilters();
     populateProductCategorySelect();
+    if (me.user?.role === 'admin') loadActivityUsers();
   }
 
   function populateCategoryFilters() {
@@ -170,6 +174,7 @@
     const isAdmin = state.user?.role === 'admin';
     const rows = state.products
       .filter((product) => !state.productSearch || product.name.toLowerCase().includes(state.productSearch.toLowerCase()))
+      .filter((product) => !state.productCategoryFilter || String(product.category_id) === state.productCategoryFilter)
       .filter((product) => !state.lowStockOnly || Number(product.quantity || 0) <= Number(product.threshold || 0))
       .map((product, index) => `
         <tr>
@@ -531,6 +536,68 @@
     await refreshAll();
   }
 
+  async function loadActivityUsers() {
+    if (state.user?.role !== 'admin') return;
+    const data = await apiRequest('/activity/users');
+    const select = $('activityUserFilter');
+    if (!select) return;
+    select.style.display = '';
+    select.innerHTML = '<option value="">All staff</option>';
+    (data.users || []).forEach((u) => {
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = `${u.name} (${u.role})`;
+      select.appendChild(opt);
+    });
+  }
+
+  async function loadActivity(page = state.activityPage) {
+    state.activityPage = page;
+    const params = new URLSearchParams({ page, limit: 50 });
+    if (state.user?.role === 'admin' && state.activityUserFilter) {
+      params.set('user_id', state.activityUserFilter);
+    }
+    const data = await apiRequest(`/activity?${params}`);
+    renderActivity(data.logs || [], data.pagination || {});
+  }
+
+  function renderActivity(logs, pagination) {
+    const isAdmin = state.user?.role === 'admin';
+    $('activityUserCol').style.display = isAdmin ? '' : 'none';
+
+    if (!logs.length) {
+      $('activityTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">No activity yet.</td></tr>';
+      $('activityPagination').innerHTML = '';
+      return;
+    }
+
+    $('activityTableBody').innerHTML = logs.map((log) => `
+      <tr>
+        <td style="white-space:nowrap;color:var(--text-muted);font-size:0.8rem">${formatDateTime(log.created_at)}</td>
+        <td ${isAdmin ? '' : 'style="display:none"'}>
+          <div style="font-weight:600;font-size:0.85rem">${log.user_name}</div>
+          <span class="badge badge-${log.user_role === 'admin' ? 'warn' : 'ok'}" style="font-size:0.7rem">${log.user_role.toUpperCase()}</span>
+        </td>
+        <td style="font-weight:500">${log.action}</td>
+        <td style="color:var(--text-secondary);font-size:0.85rem">${log.details || '—'}</td>
+      </tr>
+    `).join('');
+
+    const { page, pages } = pagination;
+    if (pages > 1) {
+      const btns = [];
+      if (page > 1) btns.push(`<button class="btn btn-ghost btn-sm" data-act-page="${page - 1}">← Prev</button>`);
+      btns.push(`<span style="color:var(--text-muted);font-size:0.8rem;line-height:30px">Page ${page} / ${pages}</span>`);
+      if (page < pages) btns.push(`<button class="btn btn-ghost btn-sm" data-act-page="${page + 1}">Next →</button>`);
+      $('activityPagination').innerHTML = btns.join('');
+      $('activityPagination').querySelectorAll('[data-act-page]').forEach((btn) =>
+        btn.addEventListener('click', () => loadActivity(Number(btn.dataset.actPage)))
+      );
+    } else {
+      $('activityPagination').innerHTML = '';
+    }
+  }
+
   async function logout() {
     clearSession();
     window.location.href = 'login.html';
@@ -541,6 +608,8 @@
     $('refreshBtn').addEventListener('click', refreshAll);
     $('logoutBtn')?.addEventListener('click', logout);
     $('viewAllAlertsBtn')?.addEventListener('click', (e) => { e.preventDefault(); navigate('alerts'); });
+    $('refreshActivityBtn')?.addEventListener('click', () => loadActivity(1));
+    $('activityUserFilter')?.addEventListener('change', (e) => { state.activityUserFilter = e.target.value; loadActivity(1); });
     $('addProductBtn')?.addEventListener('click', () => openProductModal());
     $('saveProductBtn')?.addEventListener('click', saveProduct);
     $('confirmAddStockBtn')?.addEventListener('click', saveStock);
@@ -556,6 +625,7 @@
     $('markAllReadBtn')?.addEventListener('click', markAllAlertsRead);
     $('lowStockFilter')?.addEventListener('click', () => { state.lowStockOnly = !state.lowStockOnly; renderProducts(); });
     $('productSearch')?.addEventListener('input', (e) => { state.productSearch = e.target.value; renderProducts(); });
+    $('categoryFilter')?.addEventListener('change', (e) => { state.productCategoryFilter = e.target.value; renderProducts(); });
     $('saleProductSearch')?.addEventListener('input', (e) => { state.saleSearch = e.target.value; loadSaleProducts(); });
     $('confirmAddToCartBtn')?.addEventListener('click', addToCart);
 

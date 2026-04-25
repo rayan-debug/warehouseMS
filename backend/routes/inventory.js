@@ -4,6 +4,7 @@ const db = require('../config/db');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { ensureAlert } = require('../services/alertService');
+const { logActivity } = require('../services/activityLogger');
 
 const router = express.Router();
 
@@ -62,6 +63,7 @@ router.post('/:id/stock', authenticate, [
     );
     if (!rows[0]) return res.status(404).json({ success: false, message: 'Inventory item not found.' });
     const { rows: updated } = await db.query(`${INVENTORY_SQL} WHERE i.id = $1`, [rows[0].id]);
+    logActivity(req.user.id, 'Added stock', `+${req.body.quantity} units to "${updated[0]?.product_name}"`);
     return res.json({ success: true, inventory: updated[0] });
   } catch (err) {
     return next(err);
@@ -98,6 +100,8 @@ router.post('/:id/adjust', authenticate, authorize('admin'), [
     }
 
     const { rows: updated } = await db.query(`${INVENTORY_SQL} WHERE i.id = $1`, [inv.id]);
+    const sign = adj > 0 ? `+${adj}` : String(adj);
+    logActivity(req.user.id, 'Stock correction', `${sign} units on "${updated[0]?.product_name}" — ${req.body.reason}`);
     return res.json({ success: true, inventory: updated[0] });
   } catch (err) {
     return next(err);

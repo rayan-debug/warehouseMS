@@ -74,6 +74,15 @@
         New Sale
       </div>
 
+      <div class="nav-section-label">Activity</div>
+
+      <div class="nav-item" data-page="activity">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+        Activity Log
+      </div>
+
       <div id="adminNav">
         <div class="nav-section-label">Admin</div>
         <div class="nav-item" data-page="users">
@@ -375,6 +384,40 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- ACTIVITY LOG PAGE -->
+    <div class="page-view" id="page-activity">
+      <div class="filter-bar">
+        <select class="form-control" id="activityUserFilter" style="width:200px;display:none">
+          <option value="">All staff</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" id="refreshActivityBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th id="activityUserCol">User</th>
+                <th>Action</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:32px">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="activityPagination" style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px"></div>
     </div>
 
   </main>

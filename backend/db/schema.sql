@@ -73,6 +73,16 @@ CREATE TABLE IF NOT EXISTS sale_items (
   price_at_sale NUMERIC(10, 2) NOT NULL CHECK (price_at_sale >= 0)
 );
 
+-- ─── ACTIVITY LOGS ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id         SERIAL PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action     VARCHAR(255) NOT NULL,
+  details    TEXT,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ─── INDEXES ────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_inventory_product    ON inventory(product_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_inventory     ON alerts(inventory_id);
@@ -82,6 +92,8 @@ CREATE INDEX IF NOT EXISTS idx_sale_items_product   ON sale_items(product_id);
 CREATE INDEX IF NOT EXISTS idx_sales_user           ON sales(user_id);
 CREATE INDEX IF NOT EXISTS idx_sales_created        ON sales(created_at);
 CREATE INDEX IF NOT EXISTS idx_products_category    ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_activity_user        ON activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_created     ON activity_logs(created_at DESC);
 
 -- ─── FUNCTION: auto-update inventory.last_updated ───────────
 CREATE OR REPLACE FUNCTION update_inventory_timestamp()

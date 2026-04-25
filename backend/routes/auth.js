@@ -5,6 +5,7 @@ const { body } = require('express-validator');
 const db = require('../config/db');
 const { signToken, signRefreshToken, refreshSecret, authenticate } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { logActivity } = require('../services/activityLogger');
 
 const router = express.Router();
 
@@ -27,6 +28,8 @@ router.post('/login', [
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
     }
 
+    const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+    logActivity(user.id, 'Logged in', null, ip);
     return res.json({
       success: true,
       token: signToken(user),
