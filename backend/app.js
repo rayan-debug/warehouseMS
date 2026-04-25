@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const path = require('path');
 const express = require('express');
@@ -56,6 +56,8 @@ app.use('/api/auth', rateLimit({
 
 app.use(express.static(path.join(__dirname, '../frontend/pages')));
 app.use(express.static(path.join(__dirname, '../frontend')));
+
+app.get('/', (req, res) => res.redirect('/login.html'));
 
 app.get('/api/health', (req, res) => {
   res.json({

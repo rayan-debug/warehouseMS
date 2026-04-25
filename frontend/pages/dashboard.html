@@ -420,7 +420,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="modal.close('productModal')">Cancel</button>
+      <button class="btn btn-ghost btn-sm" data-close-modal="productModal">Cancel</button>
       <button class="btn btn-primary btn-sm" id="saveProductBtn">Save Product</button>
     </div>
   </div>
@@ -448,7 +448,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="modal.close('stockModal')">Cancel</button>
+      <button class="btn btn-ghost btn-sm" data-close-modal="stockModal">Cancel</button>
       <button class="btn btn-primary btn-sm" id="confirmAddStockBtn">Add Stock</button>
     </div>
   </div>
@@ -483,7 +483,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="modal.close('userModal')">Cancel</button>
+      <button class="btn btn-ghost btn-sm" data-close-modal="userModal">Cancel</button>
       <button class="btn btn-primary btn-sm" id="saveUserBtn">Create Account</button>
     </div>
   </div>
@@ -514,8 +514,36 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost btn-sm" onclick="modal.close('addToCartModal')">Cancel</button>
+      <button class="btn btn-ghost btn-sm" data-close-modal="addToCartModal">Cancel</button>
       <button class="btn btn-primary btn-sm" id="confirmAddToCartBtn">Add to Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Adjust Stock Modal ─────────────────────────────── -->
+<div class="modal-backdrop" id="adjustModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <span class="modal-title">Correct Stock</span>
+      <button class="modal-close" data-close-modal="adjustModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
+        Adjusting: <strong id="adjustProductName" style="color:var(--text-primary)"></strong>
+      </p>
+      <input type="hidden" id="adjustInventoryId">
+      <div class="form-group">
+        <label>Adjustment (e.g. +5 or -3) *</label>
+        <input type="number" class="form-control" id="adjustQty" value="0">
+      </div>
+      <div class="form-group">
+        <label>Reason *</label>
+        <input type="text" class="form-control" id="adjustReason" placeholder="Damage, theft, count correction…">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" data-close-modal="adjustModal">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="saveAdjustBtn">Apply Correction</button>
     </div>
   </div>
 </div>

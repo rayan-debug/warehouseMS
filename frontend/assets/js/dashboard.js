@@ -167,6 +167,7 @@
   }
 
   function renderProducts() {
+    const isAdmin = state.user?.role === 'admin';
     const rows = state.products
       .filter((product) => !state.productSearch || product.name.toLowerCase().includes(state.productSearch.toLowerCase()))
       .filter((product) => !state.lowStockOnly || Number(product.quantity || 0) <= Number(product.threshold || 0))
@@ -186,7 +187,7 @@
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" data-edit-product="${product.id}">Edit</button>
               <button class="btn btn-ghost btn-sm" data-stock-product="${product.id}">Stock</button>
-              <button class="btn btn-danger btn-sm" data-delete-product="${product.id}">Delete</button>
+              ${isAdmin ? `<button class="btn btn-danger btn-sm" data-delete-product="${product.id}">Delete</button>` : ''}
             </div>
           </td>
         </tr>
@@ -200,6 +201,7 @@
   async function loadInventory() {
     const data = await apiRequest('/inventory');
     state.inventory = data.inventory || [];
+    const isAdmin = state.user?.role === 'admin';
     $('inventoryTableBody').innerHTML = state.inventory.map((item) => `
       <tr>
         <td>${item.product_name}</td>
@@ -209,10 +211,16 @@
         <td>${formatDate(item.expiry_date)}</td>
         <td>${formatDateTime(item.last_updated)}</td>
         <td><span class="badge badge-${item.status}">${item.status.toUpperCase()}</span></td>
-        <td><button class="btn btn-ghost btn-sm" data-stock-id="${item.id}">Add stock</button></td>
+        <td>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" data-stock-id="${item.id}">Add stock</button>
+            ${isAdmin ? `<button class="btn btn-ghost btn-sm" data-adjust-id="${item.id}" data-adjust-name="${item.product_name}">Correct</button>` : ''}
+          </div>
+        </td>
       </tr>
     `).join('') || '<tr><td colspan="8">No inventory data found.</td></tr>';
     $('inventoryTableBody').querySelectorAll('[data-stock-id]').forEach((button) => button.addEventListener('click', () => openStockModal(button.dataset.stockId)));
+    $('inventoryTableBody').querySelectorAll('[data-adjust-id]').forEach((button) => button.addEventListener('click', () => openAdjustModal(button.dataset.adjustId, button.dataset.adjustName)));
   }
 
   async function loadAlerts() {
@@ -268,7 +276,7 @@
         <td>${index + 1}</td>
         <td>${user.name}</td>
         <td>${user.email}</td>
-        <td>${user.role}</td>
+        <td><span class="badge badge-${user.role === 'admin' ? 'warn' : 'ok'}">${user.role.toUpperCase()}</span></td>
         <td>${formatDateTime(user.created_at)}</td>
         <td>${user.id === state.user.id ? '<span class="badge badge-info">You</span>' : `<button class="btn btn-danger btn-sm" data-delete-user="${user.id}">Delete</button>`}</td>
       </tr>
@@ -386,6 +394,29 @@
     });
     modal.close('stockModal');
     toast('Stock added.');
+    await refreshAll();
+  }
+
+  function openAdjustModal(inventoryId, productName) {
+    $('adjustInventoryId').value = inventoryId;
+    $('adjustProductName').textContent = productName || 'Selected product';
+    $('adjustQty').value = '0';
+    $('adjustReason').value = '';
+    modal.open('adjustModal');
+  }
+
+  async function saveAdjust() {
+    const id = $('adjustInventoryId').value;
+    const adjustment = Number($('adjustQty').value);
+    const reason = $('adjustReason').value.trim();
+    if (!adjustment) { toast('Adjustment cannot be zero.', 'error'); return; }
+    if (!reason) { toast('Reason is required.', 'error'); return; }
+    await apiRequest(`/inventory/${id}/adjust`, {
+      method: 'POST',
+      body: JSON.stringify({ adjustment, reason }),
+    });
+    modal.close('adjustModal');
+    toast('Stock corrected.');
     await refreshAll();
   }
 
@@ -508,9 +539,12 @@
   function attachEvents() {
     document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => navigate(item.dataset.page)));
     $('refreshBtn').addEventListener('click', refreshAll);
+    $('logoutBtn')?.addEventListener('click', logout);
+    $('viewAllAlertsBtn')?.addEventListener('click', (e) => { e.preventDefault(); navigate('alerts'); });
     $('addProductBtn')?.addEventListener('click', () => openProductModal());
     $('saveProductBtn')?.addEventListener('click', saveProduct);
     $('confirmAddStockBtn')?.addEventListener('click', saveStock);
+    $('saveAdjustBtn')?.addEventListener('click', saveAdjust);
     $('addUserBtn')?.addEventListener('click', () => modal.open('userModal'));
     $('saveUserBtn')?.addEventListener('click', saveUser);
     $('processSaleBtn')?.addEventListener('click', processSale);
@@ -525,20 +559,20 @@
     $('saleProductSearch')?.addEventListener('input', (e) => { state.saleSearch = e.target.value; loadSaleProducts(); });
     $('confirmAddToCartBtn')?.addEventListener('click', addToCart);
 
-    ['productModal', 'stockModal', 'userModal', 'addToCartModal'].forEach((id) => {
+    ['productModal', 'stockModal', 'userModal', 'addToCartModal', 'adjustModal'].forEach((id) => {
       const backdrop = $(id);
       backdrop?.addEventListener('click', (event) => {
-        if (event.target === backdrop) {
-          modal.close(id);
-        }
+        if (event.target === backdrop) modal.close(id);
       });
+    });
+
+    document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+      btn.addEventListener('click', () => modal.close(btn.dataset.closeModal));
     });
 
     document.addEventListener('click', (event) => {
       const readTarget = event.target.closest?.('[data-read-alert]');
-      if (readTarget) {
-        markAlertRead(readTarget.dataset.readAlert);
-      }
+      if (readTarget) markAlertRead(readTarget.dataset.readAlert);
     });
   }
 
