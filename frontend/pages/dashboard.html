@@ -339,7 +339,24 @@
           </button>
           <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" id="clearCartBtn">Clear cart</button>
         </div>
+
+        <!-- Smart Suggestions panel -->
+        <div id="smartSuggestions" style="display:none;margin-top:16px">
+          <div class="card" style="border:1px solid rgba(230,57,70,0.25);background:rgba(230,57,70,0.04)">
+            <div class="card-header" style="padding-bottom:10px">
+              <span class="card-title" style="display:flex;align-items:center;gap:8px;font-size:0.85rem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                Smart Suggestions
+              </span>
+              <span style="font-size:0.7rem;color:var(--text-muted)">Often bought together</span>
+            </div>
+            <div id="suggestionsList" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
       </div>
+    </div>
     </div>
 
     <!-- USERS PAGE (admin only) -->

@@ -17,6 +17,46 @@ function parsePage(q) {
   return { page, limit, offset: (page - 1) * limit };
 }
 
+// GET /api/sales/suggestions?product_ids=1,2,3
+// Returns products most frequently bought alongside the given cart products.
+router.get('/suggestions', authenticate, async (req, res, next) => {
+  try {
+    const ids = String(req.query.product_ids || '')
+      .split(',')
+      .map(Number)
+      .filter(Boolean);
+
+    if (!ids.length) return res.json({ success: true, suggestions: [] });
+
+    const { rows } = await query(`
+      SELECT
+        p.id,
+        p.name,
+        p.price,
+        i.quantity          AS available,
+        c.name              AS category_name,
+        COUNT(DISTINCT si2.sale_id)::int AS score
+      FROM sale_items si1
+      JOIN sale_items si2
+        ON  si2.sale_id    = si1.sale_id
+        AND si2.product_id <> si1.product_id
+      JOIN products   p ON p.id = si2.product_id
+      JOIN inventory  i ON i.product_id = p.id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE si1.product_id = ANY($1)
+        AND si2.product_id <> ALL($1)
+        AND i.quantity > 0
+      GROUP BY p.id, p.name, p.price, i.quantity, c.name
+      ORDER BY score DESC
+      LIMIT 5
+    `, [ids]);
+
+    return res.json({ success: true, suggestions: rows });
+  } catch (err) {
+    return next(err);
+  }
+});
+
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePage(req.query);
