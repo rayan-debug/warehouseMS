@@ -60,6 +60,12 @@ router.get('/suggestions', authenticate, async (req, res, next) => {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePage(req.query);
+    const isAdmin = req.user.role === 'admin';
+    const userFilter = isAdmin ? '' : 'WHERE s.user_id = $3';
+    const countFilter = isAdmin ? '' : 'WHERE user_id = $1';
+    const baseParams = [limit, offset];
+    if (!isAdmin) baseParams.push(req.user.id);
+
     const [{ rows }, { rows: [{ count }] }] = await Promise.all([
       query(`
         SELECT s.id, s.user_id, u.name AS user_name,
@@ -68,11 +74,13 @@ router.get('/', authenticate, async (req, res, next) => {
         FROM sales s
         JOIN users u ON u.id = s.user_id
         LEFT JOIN sale_items si ON si.sale_id = s.id
+        ${userFilter}
         GROUP BY s.id, u.name
         ORDER BY s.created_at DESC
         LIMIT $1 OFFSET $2
-      `, [limit, offset]),
-      query('SELECT COUNT(*)::int AS count FROM sales'),
+      `, baseParams),
+      query(`SELECT COUNT(*)::int AS count FROM sales ${countFilter}`,
+        isAdmin ? [] : [req.user.id]),
     ]);
     return res.json({
       success: true,
