@@ -656,8 +656,12 @@
     if (state.user?.role === 'admin' && state.activityUserFilter) {
       params.set('user_id', state.activityUserFilter);
     }
-    const data = await apiRequest(`/activity?${params}`);
-    renderActivity(data.logs || [], data.pagination || {});
+    try {
+      const data = await apiRequest(`/activity?${params}`);
+      renderActivity(data.logs || [], data.pagination || {});
+    } catch (err) {
+      $('activityTableBody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--accent);padding:32px">${err.message || 'Failed to load activity.'}</td></tr>`;
+    }
   }
 
   function renderActivity(logs, pagination) {
