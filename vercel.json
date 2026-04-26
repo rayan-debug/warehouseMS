@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/assets/:path*", "destination": "/frontend/assets/:path*" },
+    { "source": "/:file.html", "destination": "/frontend/pages/:file.html" },
+    { "source": "/", "destination": "/frontend/pages/login.html" }
+  ]
+}

@@ -70,6 +70,7 @@
     };
     $('pageTitle').textContent = titles[page] || 'WarehouseMS';
     if (page === 'activity') loadActivity(1);
+    if (page === 'users') loadUsers();
   }
 
   async function loadBootData() {
@@ -274,19 +275,24 @@
       $('usersTableBody').innerHTML = '<tr><td colspan="6">Admin access required.</td></tr>';
       return;
     }
-    const data = await apiRequest('/admin/users');
-    state.users = data.users || [];
-    $('usersTableBody').innerHTML = state.users.map((user, index) => `
-      <tr>
-        <td>${index + 1}</td>
-        <td>${user.name}</td>
-        <td>${user.email}</td>
-        <td><span class="badge badge-${user.role === 'admin' ? 'warn' : 'ok'}">${user.role.toUpperCase()}</span></td>
-        <td>${formatDateTime(user.created_at)}</td>
-        <td>${user.id === state.user.id ? '<span class="badge badge-info">You</span>' : `<button class="btn btn-danger btn-sm" data-delete-user="${user.id}">Delete</button>`}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="6">No users found.</td></tr>';
-    $('usersTableBody').querySelectorAll('[data-delete-user]').forEach((button) => button.addEventListener('click', () => removeUser(button.dataset.deleteUser)));
+    try {
+      const data = await apiRequest('/admin/users');
+      state.users = data.users || [];
+      $('usersTableBody').innerHTML = state.users.map((user, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${user.name}</td>
+          <td>${user.email}</td>
+          <td><span class="badge badge-${user.role === 'admin' ? 'warn' : 'ok'}">${user.role.toUpperCase()}</span></td>
+          <td>${formatDateTime(user.created_at)}</td>
+          <td>${user.id === state.user.id ? '<span class="badge badge-info">You</span>' : `<button class="btn btn-danger btn-sm" data-delete-user="${user.id}">Delete</button>`}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="6">No users found.</td></tr>';
+      $('usersTableBody').querySelectorAll('[data-delete-user]').forEach((button) => button.addEventListener('click', () => removeUser(button.dataset.deleteUser)));
+    } catch (err) {
+      toast(err.message || 'Failed to load users.', 'error');
+      $('usersTableBody').innerHTML = '<tr><td colspan="6">Failed to load users.</td></tr>';
+    }
   }
 
   async function loadSaleProducts() {
@@ -586,20 +592,25 @@
   }
 
   async function downloadSalesReport() {
-    const response = await fetch(`${API_BASE}/admin/reports/sales`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!response.ok) {
-      toast('Could not download report.', 'error');
-      return;
+    try {
+      const response = await fetch(`${API_BASE}/admin/reports/sales`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        toast(errData.message || 'Could not download report.', 'error');
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'monthly-sales-report.pdf';
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(err.message || 'Failed to download report.', 'error');
     }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'monthly-sales-report.pdf';
-    anchor.click();
-    URL.revokeObjectURL(url);
   }
 
   async function removeProduct(id) {

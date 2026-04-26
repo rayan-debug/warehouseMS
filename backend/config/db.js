@@ -8,7 +8,10 @@ if (!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test') {
 }
 
 const pool = process.env.DATABASE_URL
-  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+    })
   : null;
 
 if (pool) {

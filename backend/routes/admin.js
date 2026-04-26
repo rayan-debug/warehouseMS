@@ -110,7 +110,7 @@ router.delete('/users/:id', async (req, res, next) => {
   }
 });
 
-router.get('/reports/sales', async (req, res, next) => {
+router.get('/reports/sales', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const [stats, { rows: sales }, { rows: products }] = await Promise.all([
       getStats(),

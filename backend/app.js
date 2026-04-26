@@ -22,11 +22,12 @@ const app = express();
 
 app.use(helmet());
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5500',
+  process.env.FRONTEND_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   'http://127.0.0.1:5500',
   'http://localhost:5500',
   'http://localhost:3000',
-];
+].filter(Boolean);
 app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin)),
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -45,6 +46,7 @@ app.use('/api', rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== 'production',
   message: { success: false, message: 'Too many requests, please try again later.' },
 }));
 
