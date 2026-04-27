@@ -166,7 +166,7 @@
   }
 
   async function loadProducts() {
-    const data = await apiRequest('/products');
+    const data = await apiRequest('/products?limit=1000');
     state.products = data.products || [];
     renderProducts();
   }
@@ -205,7 +205,7 @@
   }
 
   async function loadInventory() {
-    const data = await apiRequest('/inventory');
+    const data = await apiRequest('/inventory?limit=1000');
     state.inventory = data.inventory || [];
     const isAdmin = state.user?.role === 'admin';
     $('inventoryTableBody').innerHTML = state.inventory.map((item) => `

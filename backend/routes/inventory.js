@@ -25,7 +25,7 @@ const INVENTORY_SQL = `
 
 function parsePage(q) {
   const page  = Math.max(1, parseInt(q.page,  10) || 1);
-  const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 100));
+  const limit = Math.min(1000, Math.max(1, parseInt(q.limit, 10) || 1000));
   return { page, limit, offset: (page - 1) * limit };
 }
 
