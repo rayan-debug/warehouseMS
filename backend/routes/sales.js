@@ -7,10 +7,15 @@ const { generateInvoicePdf } = require('../services/pdfService');
 const { ensureAlert } = require('../services/alertService');
 const { logActivity } = require('../services/activityLogger');
 
+// Sales API: list/get sales, process new sales (with stock deduction +
+// low-stock alerts), generate PDF invoices, and the Smart Suggestions endpoint
+// that combines co-purchase mining with curated Lebanese-cuisine pairings.
 const router = express.Router();
 
+// Throw-friendly helper for 4xx errors raised inside transactions.
 const clientError = (msg) => Object.assign(new Error(msg), { statusCode: 400 });
 
+// Parse ?page=&limit= from the request, capped at 200 rows per page.
 function parsePage(q) {
   const page  = Math.max(1, parseInt(q.page,  10) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 50));
@@ -153,6 +158,7 @@ router.get('/suggestions', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/sales — paginated sales list. Admins see all, staff see only their own.
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePage(req.query);
@@ -188,6 +194,7 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/sales/:id — single sale with its line items.
 router.get('/:id', authenticate, [
   param('id').isInt({ gt: 0 }).withMessage('Sale ID must be a positive integer.'),
 ], validate, async (req, res, next) => {
@@ -209,6 +216,9 @@ router.get('/:id', authenticate, [
   }
 });
 
+// POST /api/sales — process a sale atomically: validates each line item,
+// row-locks inventory (FOR UPDATE) to prevent overselling, deducts stock,
+// records sale_items, and fires low-stock alerts when needed.
 router.post('/', authenticate, async (req, res, next) => {
   const items = req.body.items || [];
   if (!items.length) {
@@ -293,6 +303,7 @@ router.post('/', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/sales/:id/invoice — stream a generated PDF invoice for the sale.
 router.get('/:id/invoice', authenticate, [
   param('id').isInt({ gt: 0 }).withMessage('Sale ID must be a positive integer.'),
 ], validate, async (req, res, next) => {

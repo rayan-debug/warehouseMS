@@ -1,9 +1,14 @@
+// Migration runner — applies backend/db/schema.sql to the configured database.
+// Schema uses CREATE TABLE IF NOT EXISTS, so re-running is non-destructive.
+// Invoke via `npm run migrate`.
+
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 const logger = require('../config/logger');
 
+// Connect to DATABASE_URL, execute schema.sql in one round-trip, then disconnect.
 async function main() {
   if (!process.env.DATABASE_URL) {
     logger.info('DATABASE_URL not set. Skipping PostgreSQL migration and using demo data.');

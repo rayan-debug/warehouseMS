@@ -1,7 +1,11 @@
+// Shared UI helpers (formatters, toasts, modals) exposed on window for any page.
+
+// Format a number as a USD currency string.
 function formatCurrency(value) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value || 0));
 }
 
+// Format a date-only string for display; falls back to em-dash for null/empty.
 function formatDate(value) {
   if (!value) {
     return '—';
@@ -9,6 +13,7 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString();
 }
 
+// Format a full timestamp for display; falls back to em-dash for null/empty.
 function formatDateTime(value) {
   if (!value) {
     return '—';
@@ -16,6 +21,8 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
+// Show an auto-dismissing toast in the bottom-right corner.
+// Lazily creates the container on first call.
 function toast(message, type = 'info') {
   let container = document.getElementById('toastContainer');
   if (!container) {
@@ -42,6 +49,7 @@ function toast(message, type = 'info') {
   setTimeout(() => item.remove(), 2800);
 }
 
+// Toggle the .show class on a modal element by id (no-op if missing).
 function setModalState(id, open) {
   const modal = document.getElementById(id);
   if (!modal) {
@@ -50,6 +58,7 @@ function setModalState(id, open) {
   modal.classList.toggle('show', open);
 }
 
+// Public modal API used across pages: modal.open(id) / modal.close(id).
 const modal = {
   open(id) {
     setModalState(id, true);

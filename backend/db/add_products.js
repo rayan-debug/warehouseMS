@@ -1,6 +1,11 @@
+// One-shot script (executed historically) that appended +50 beverages and
+// +51 produce items into an existing database. Idempotent — looks up each
+// product by name and skips if it already exists. Kept for reference.
+
 require('dotenv').config();
 const { Client } = require('pg');
 
+// Helper for synthetic expiry dates: today + N days, ISO yyyy-mm-dd.
 function addDays(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -115,6 +120,8 @@ const NEW_PRODUCE = [
   ['Pumpkin Seeds 200 g', 'Raw pumpkin seeds, 200 g', 3.50, 80, 14, 365],
 ];
 
+// Connect, look up category ids, then insert each product (skipping by name)
+// alongside an inventory row for it.
 async function run() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();

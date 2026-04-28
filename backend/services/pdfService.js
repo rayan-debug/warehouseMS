@@ -1,5 +1,8 @@
+// PDF generation helpers using pdfkit. Streams documents directly to the
+// HTTP response so nothing has to land on disk.
 const PDFDocument = require('pdfkit');
 
+// Build a fresh A4 document and pipe it to the response with download headers.
 function buildDocument(res, filename) {
   const doc = new PDFDocument({ size: 'A4', margin: 48 });
   res.setHeader('Content-Type', 'application/pdf');
@@ -8,6 +11,7 @@ function buildDocument(res, filename) {
   return doc;
 }
 
+// Stream a per-sale invoice PDF to the response (used by GET /sales/:id/invoice).
 function generateInvoicePdf(res, sale) {
   const doc = buildDocument(res, `invoice-${sale.id}.pdf`);
   doc.fontSize(20).text('WarehouseMS Invoice', { align: 'center' });
@@ -26,6 +30,7 @@ function generateInvoicePdf(res, sale) {
   doc.end();
 }
 
+// Stream a monthly sales report (KPIs + top products + recent sales) — admin only.
 function generateSalesReportPdf(res, { stats, sales, products }) {
   const doc = buildDocument(res, 'monthly-sales-report.pdf');
   doc.fontSize(20).text('WarehouseMS Monthly Sales Report', { align: 'center' });

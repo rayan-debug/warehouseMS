@@ -2,8 +2,10 @@ const express = require('express');
 const { query: dbQuery } = require('../config/db');
 const { authenticate } = require('../middleware/auth');
 
+// Activity-log API: feeds the audit log view in the admin dashboard.
 const router = express.Router();
 
+// Parse ?page=&limit= from the request, capped at 200 rows per page.
 function parsePage(q) {
   const page  = Math.max(1, parseInt(q.page, 10) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 50));

@@ -5,8 +5,12 @@ const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { logActivity } = require('../services/activityLogger');
 
+// Products API: list/get/create/update/delete. Each row joins inventory so the
+// response carries quantity/threshold/expiry/status alongside the product.
 const router = express.Router();
 
+// Shared SELECT shape — products joined with categories + inventory, with a
+// derived "status" column (out / low / ok) computed from quantity vs threshold.
 const PRODUCT_SQL = `
   SELECT p.id, p.name, p.description, p.category_id, p.price, p.created_at,
          c.name AS category_name,
@@ -24,12 +28,14 @@ const PRODUCT_SQL = `
   LEFT JOIN inventory  i ON i.product_id = p.id
 `;
 
+// Parse ?page=&limit= from the request, capped at 1000 rows per page.
 function parsePage(q) {
   const page  = Math.max(1, parseInt(q.page,  10) || 1);
   const limit = Math.min(1000, Math.max(1, parseInt(q.limit, 10) || 1000));
   return { page, limit, offset: (page - 1) * limit };
 }
 
+// Reusable validators applied to create/update bodies.
 const productFields = [
   body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a non-negative number.'),
   body('quantity').optional().isInt({ min: 0 }).withMessage('Quantity must be a non-negative integer.'),
@@ -37,6 +43,7 @@ const productFields = [
   body('expiry_date').optional({ nullable: true }).isISO8601().withMessage('expiry_date must be a valid date (YYYY-MM-DD).'),
 ];
 
+// GET /api/products — paginated list with totals for client-side filtering.
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePage(req.query);
@@ -54,6 +61,7 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /api/products/:id — single product with inventory + status.
 router.get('/:id', authenticate, [
   param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
 ], validate, async (req, res, next) => {
@@ -66,6 +74,7 @@ router.get('/:id', authenticate, [
   }
 });
 
+// POST /api/products (admin) — atomically create a product + its inventory row.
 router.post('/', authenticate, authorize('admin'), [
   body('name').trim().notEmpty().withMessage('Product name is required.'),
   ...productFields,
@@ -96,6 +105,8 @@ router.post('/', authenticate, authorize('admin'), [
   }
 });
 
+// PUT /api/products/:id (admin) — patch product + inventory in one transaction.
+// Only fields present in the body are updated (COALESCE handles partial input).
 router.put('/:id', authenticate, authorize('admin'), [
   param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
   ...productFields,
@@ -143,6 +154,7 @@ router.put('/:id', authenticate, authorize('admin'), [
   }
 });
 
+// DELETE /api/products/:id (admin) — schema cascades to inventory + alerts.
 router.delete('/:id', authenticate, authorize('admin'), [
   param('id').isInt({ gt: 0 }).withMessage('Product ID must be a positive integer.'),
 ], validate, async (req, res, next) => {

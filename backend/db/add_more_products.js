@@ -1,6 +1,11 @@
+// One-shot script (executed historically) that appended +50 beverages and
+// +50 produce items into an existing database. Idempotent — INSERTs are
+// gated by a SELECT-by-name check, so re-running is safe. Kept for reference.
+
 require('dotenv').config();
 const { Client } = require('pg');
 
+// Helper for synthetic expiry dates: today + N days, ISO yyyy-mm-dd.
 function addDays(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -114,6 +119,7 @@ const MORE_PRODUCE = [
   ['Green Chickpeas (Mleihi) 500 g', 'Fresh seasonal green chickpeas, 500 g', 5.00, 45, 8, 4],
 ];
 
+// Connect, look up category ids, then iterate each item list and insert.
 async function run() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
@@ -123,6 +129,8 @@ async function run() {
 
     let added = 0;
 
+    // Insert one category's worth of products + inventory rows. Skips by name
+    // to make re-runs safe; logs added/skipped totals per category.
     async function insertCategory(catName, items) {
       const catId = catMap[catName];
       let catAdded = 0;

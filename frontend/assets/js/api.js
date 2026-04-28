@@ -1,14 +1,20 @@
+// Frontend HTTP client. Resolves API base by environment, manages JWT
+// access/refresh tokens in localStorage, and silently retries 401s once.
+
+// Pick API base: localhost dev → :3000, deployed → relative /api on Vercel.
 const API_BASE = window.API_BASE || (
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:3000/api'
     : '/api'
 );
 
+// Thin localStorage accessors for the access + refresh tokens.
 function getToken()         { return localStorage.getItem('wms_token'); }
 function getRefreshToken()  { return localStorage.getItem('wms_refresh_token'); }
 function setToken(t)        { localStorage.setItem('wms_token', t); }
 function setRefreshToken(t) { localStorage.setItem('wms_refresh_token', t); }
 
+// Wipe all session data — called on logout and on terminal auth failures.
 function clearSession() {
   localStorage.removeItem('wms_token');
   localStorage.removeItem('wms_refresh_token');
@@ -18,6 +24,8 @@ function clearSession() {
 // Shared promise so concurrent 401s only trigger one refresh call.
 let _refreshPromise = null;
 
+// Exchange the refresh token for a fresh access token. Concurrent callers
+// share the same in-flight promise to avoid hammering /auth/refresh.
 async function tryRefreshToken() {
   if (_refreshPromise) return _refreshPromise;
   _refreshPromise = (async () => {
@@ -42,6 +50,9 @@ async function tryRefreshToken() {
   return _refreshPromise;
 }
 
+// Authenticated fetch wrapper used by every page. Adds Bearer token, parses
+// the response (JSON / PDF blob / text), and on 401 attempts a single silent
+// refresh-and-retry before clearing the session and redirecting to login.
 async function apiRequest(path, options = {}, _isRetry = false) {
   const headers = new Headers(options.headers || {});
   const token = getToken();

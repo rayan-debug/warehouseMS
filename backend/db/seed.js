@@ -1,8 +1,14 @@
+// Database seeder — TRUNCATEs every domain table then inserts the canonical
+// catalog of categories, demo users, and 303 Lebanese-supermarket products
+// defined in PRODUCTS below. DESTRUCTIVE — only run on a fresh DB or when a
+// full reset is intentional. Invoke via `npm run seed`.
+
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { Client } = require('pg');
 const logger = require('../config/logger');
 
+// Helper for synthetic expiry dates: today + N days, ISO yyyy-mm-dd.
 function addDays(days) {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -327,6 +333,8 @@ const PRODUCTS = {
   ],
 };
 
+// Wipe + re-seed: truncate all domain tables, then insert categories, users,
+// products + inventory rows, and a small demo sale to exercise the schema.
 async function main() {
   if (!process.env.DATABASE_URL) {
     logger.error('DATABASE_URL is required. Configure backend/.env first.');

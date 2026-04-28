@@ -1,4 +1,9 @@
+// Dashboard SPA controller. Single IIFE that owns all client-side state,
+// page routing, data fetching, rendering, and event wiring for the
+// authenticated app. Exposes nothing globally — all helpers are private.
 (() => {
+  // Single source of truth for everything the UI renders. Mutated by load
+  // functions (loadProducts, loadInventory, …) and read by render functions.
   const state = {
     user: null,
     categories: [],
@@ -18,9 +23,11 @@
     activityUserFilter: '',
   };
 
+  // Shorthand DOM helpers used everywhere below.
   const $ = (id) => document.getElementById(id);
   const byPage = (page) => document.getElementById(`page-${page}`);
 
+  // Read the cached user blob from localStorage; tolerant of missing/invalid JSON.
   function getLocalUser() {
     try {
       return JSON.parse(localStorage.getItem('wms_user') || 'null');
@@ -29,6 +36,7 @@
     }
   }
 
+  // Bounce the user back to login.html if no JWT is present.
   function requireAuth() {
     if (!getToken()) {
       window.location.href = 'login.html';
@@ -37,6 +45,7 @@
     return true;
   }
 
+  // Update the header chip + show/hide admin-only UI based on user.role.
   function setUser(user) {
     state.user = user;
     $('userName').textContent = user?.name || 'Guest';
@@ -51,6 +60,8 @@
     });
   }
 
+  // Switch the active page view: toggles .active classes, sets the title,
+  // and lazy-loads data for tabs that need fresh fetches on visit.
   function navigate(page) {
     state.activePage = page;
     document.querySelectorAll('.page-view').forEach((view) => view.classList.remove('active'));
@@ -73,6 +84,8 @@
     if (page === 'users') loadUsers();
   }
 
+  // First-paint fetch — pulls /me + categories so the header and dropdowns
+  // can render before any tab-specific data loads.
   async function loadBootData() {
     const [me, categories] = await Promise.all([
       apiRequest('/auth/me'),
@@ -85,6 +98,7 @@
     if (me.user?.role === 'admin') loadActivityUsers();
   }
 
+  // Populate the category <select> dropdowns (filter + product modal) from state.
   function populateCategoryFilters() {
     const filters = [$('categoryFilter'), $('pm_category')];
     filters.forEach((select) => {
@@ -103,6 +117,7 @@
     });
   }
 
+  // Populate the category dropdown specifically inside the product create/edit modal.
   function populateProductCategorySelect() {
     const select = $('pm_category');
     if (!select) return;
@@ -115,6 +130,7 @@
     });
   }
 
+  // Reload every data tab in parallel — used by the global refresh button.
   async function refreshAll() {
     await loadProducts();
     await Promise.all([
@@ -127,6 +143,8 @@
     ]);
   }
 
+  // Fetch the dashboard KPI tiles (total products, low-stock, today/month revenue,
+  // top movers, recent alerts) and render them into the home page.
   async function loadDashboard() {
     const data = await apiRequest('/admin/dashboard');
     const stats = data.stats || {};
@@ -165,12 +183,15 @@
     }
   }
 
+  // Pull the full product catalog (up to 1000 rows) into state.
   async function loadProducts() {
     const data = await apiRequest('/products?limit=1000');
     state.products = data.products || [];
     renderProducts();
   }
 
+  // Render the Products tab table — search, category filter, low-stock filter
+  // are all applied client-side over state.products.
   function renderProducts() {
     const isAdmin = state.user?.role === 'admin';
     const rows = state.products
@@ -204,6 +225,7 @@
     $('productsTableBody').querySelectorAll('[data-delete-product]').forEach((button) => button.addEventListener('click', () => removeProduct(button.dataset.deleteProduct)));
   }
 
+  // Fetch the inventory list (joined with product + category) and render the table.
   async function loadInventory() {
     const data = await apiRequest('/inventory?limit=1000');
     state.inventory = data.inventory || [];
@@ -229,6 +251,7 @@
     $('inventoryTableBody').querySelectorAll('[data-adjust-id]').forEach((button) => button.addEventListener('click', () => openAdjustModal(button.dataset.adjustId, button.dataset.adjustName)));
   }
 
+  // Fetch alerts (optionally filtered by type) and refresh the bell badge + lists.
   async function loadAlerts() {
     const data = await apiRequest('/alerts');
     state.alerts = data.alerts || [];
@@ -237,10 +260,12 @@
     $('alertBadge').style.display = state.alerts.some((alert) => !alert.is_read) ? 'inline-grid' : 'none';
   }
 
+  // Compact single-line alert markup for the dashboard's "Recent Alerts" card.
   function renderAlertPreview(alert) {
     return `<div class="sale-row"><div class="alert-title">${alert.type.toUpperCase()} Alert</div><div class="alert-meta">${alert.message}</div></div>`;
   }
 
+  // Full-card alert markup for the Alerts tab (with mark-as-read button).
   function renderAlertCard(alert) {
     return `
       <div class="alert-item ${alert.is_read ? '' : 'unread'}">
@@ -254,6 +279,7 @@
     `;
   }
 
+  // Fetch the most recent sales (admin sees all, staff sees their own — backend gates it).
   async function loadSales() {
     const data = await apiRequest('/sales');
     state.sales = data.sales || [];
@@ -270,6 +296,7 @@
     $('salesTableBody').querySelectorAll('[data-invoice-id]').forEach((button) => button.addEventListener('click', () => downloadInvoice(button.dataset.invoiceId)));
   }
 
+  // Fetch and render the users table (admin only — endpoint enforces the role).
   async function loadUsers() {
     if (state.user?.role !== 'admin') {
       $('usersTableBody').innerHTML = '<tr><td colspan="6">Admin access required.</td></tr>';
@@ -295,6 +322,7 @@
     }
   }
 
+  // Render the in-stock product picker shown on the New Sale tab.
   async function loadSaleProducts() {
     const rows = state.products
       .filter((product) => !state.saleSearch || product.name.toLowerCase().includes(state.saleSearch.toLowerCase()))
@@ -312,6 +340,7 @@
     renderCart();
   }
 
+  // Render the cart panel and trigger Smart Suggestions for the current items.
   function renderCart() {
     if (!state.cart.length) {
       $('cartItems').innerHTML = '<p style="color:var(--text-muted);font-size:0.83rem;text-align:center;padding:20px 0">No items added yet</p>';
@@ -339,6 +368,8 @@
     loadSuggestions();
   }
 
+  // Smart Suggestions: 350ms debounced fetch to /sales/suggestions for the cart's
+  // current product IDs. Backend returns sales-mining + Lebanese-pairing results.
   let _suggestionDebounce = null;
   async function loadSuggestions() {
     clearTimeout(_suggestionDebounce);
@@ -354,6 +385,8 @@
     }, 350);
   }
 
+  // Render the red Smart Suggestions card. Each entry is tagged with how it
+  // was sourced — "×N sales" for co-purchase data, "Lebanese pairing" for rules.
   function renderSuggestions(suggestions) {
     const panel = $('smartSuggestions');
     const list  = $('suggestionsList');
@@ -402,6 +435,7 @@
     });
   }
 
+  // Open the product create/edit modal, prefilling fields when editing.
   function openProductModal(id = '') {
     const product = state.products.find((entry) => String(entry.id) === String(id));
     $('productModalTitle').textContent = product ? 'Edit Product' : 'Add Product';
@@ -416,6 +450,7 @@
     modal.open('productModal');
   }
 
+  // Open the "receive stock" modal for adding a shipment to an inventory row.
   function openStockModal(id) {
     const product = state.products.find((entry) => String(entry.id) === String(id)) || state.inventory.find((entry) => String(entry.id) === String(id));
     const inventoryRecord = state.inventory.find((entry) => String(entry.id) === String(id)) || state.inventory.find((entry) => String(entry.product_id) === String(id));
@@ -426,6 +461,7 @@
     modal.open('stockModal');
   }
 
+  // Open the Add-to-Cart modal where the user picks quantity + price for a sale.
   function openAddToCartModal(productId) {
     const product = state.products.find((entry) => String(entry.id) === String(productId));
     if (!product) return;
@@ -439,6 +475,7 @@
     modal.open('addToCartModal');
   }
 
+  // POST or PUT a product based on whether the modal carries a productId.
   async function saveProduct() {
     const productId = $('saveProductBtn').dataset.productId;
     const payload = {
@@ -464,6 +501,7 @@
     }
   }
 
+  // Submit the receive-stock modal — increments quantity for a single inventory row.
   async function saveStock() {
     const id = $('stockProductId').value;
     const qty = Number($('stockQty').value || 0);
@@ -481,6 +519,7 @@
     }
   }
 
+  // Open the manual stock-correction modal (admin only — relative +/- with a reason).
   function openAdjustModal(inventoryId, productName) {
     $('adjustInventoryId').value = inventoryId;
     $('adjustProductName').textContent = productName || 'Selected product';
@@ -489,6 +528,7 @@
     modal.open('adjustModal');
   }
 
+  // Submit the stock-correction modal to /inventory/:id/adjust.
   async function saveAdjust() {
     const id = $('adjustInventoryId').value;
     const adjustment = Number($('adjustQty').value);
@@ -508,6 +548,7 @@
     }
   }
 
+  // Submit the admin Create-User modal to /admin/users with the chosen role.
   async function saveUser() {
     const name     = $('um_name').value.trim();
     const email    = $('um_email').value.trim();
@@ -538,6 +579,7 @@
     }
   }
 
+  // Apply the Add-to-Cart modal: validate quantity vs available stock and push into state.cart.
   async function addToCart() {
     const productId = Number($('atcProductId').value);
     const quantity = Number($('atcQty').value || 1);
@@ -557,6 +599,7 @@
     renderCart();
   }
 
+  // Submit the cart to /sales — backend deducts stock and creates the sale record.
   async function processSale() {
     if (!state.cart.length) {
       toast('Add at least one item first.', 'error');
@@ -579,6 +622,7 @@
     }
   }
 
+  // Trigger a browser download of the per-sale invoice PDF.
   async function downloadInvoice(id) {
     const response = await fetch(`${API_BASE}/sales/${id}/invoice`, {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -596,6 +640,7 @@
     URL.revokeObjectURL(url);
   }
 
+  // Trigger a browser download of the monthly sales report PDF (admin only).
   async function downloadSalesReport() {
     try {
       const response = await fetch(`${API_BASE}/admin/reports/sales`, {
@@ -618,6 +663,7 @@
     }
   }
 
+  // Confirm + DELETE a product (admin only — schema cascades to inventory/alerts).
   async function removeProduct(id) {
     if (!confirm('Delete this product? This cannot be undone.')) return;
     try {
@@ -629,6 +675,7 @@
     }
   }
 
+  // Confirm + DELETE a user (admin only; backend prevents self-delete).
   async function removeUser(id) {
     if (!confirm('Delete this user? This cannot be undone.')) return;
     try {
@@ -640,17 +687,20 @@
     }
   }
 
+  // Mark a single alert as read and refresh the list + badge.
   async function markAlertRead(id) {
     await apiRequest(`/alerts/${id}/read`, { method: 'PATCH' });
     await loadAlerts();
     await loadDashboard();
   }
 
+  // Mark every alert as read in one shot.
   async function markAllAlertsRead() {
     await apiRequest('/alerts/read-all', { method: 'PATCH' });
     await refreshAll();
   }
 
+  // Populate the activity-log "filter by user" dropdown (admin only).
   async function loadActivityUsers() {
     if (state.user?.role !== 'admin') return;
     const data = await apiRequest('/activity/users');
@@ -666,6 +716,7 @@
     });
   }
 
+  // Fetch a paginated page of audit-log entries and render them.
   async function loadActivity(page = state.activityPage) {
     state.activityPage = page;
     const params = new URLSearchParams({ page, limit: 50 });
@@ -680,6 +731,7 @@
     }
   }
 
+  // Render the activity-log list + the prev/next pagination controls.
   function renderActivity(logs, pagination) {
     const isAdmin = state.user?.role === 'admin';
     $('activityUserCol').style.display = isAdmin ? '' : 'none';
@@ -717,11 +769,14 @@
     }
   }
 
+  // Wipe the local session and bounce back to the login page.
   async function logout() {
     clearSession();
     window.location.href = 'login.html';
   }
 
+  // Wire every button, search input, filter, and modal action to its handler.
+  // Called once at boot from init().
   function attachEvents() {
     document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => navigate(item.dataset.page)));
     $('refreshBtn').addEventListener('click', refreshAll);
@@ -765,12 +820,15 @@
     });
   }
 
+  // Render only the alerts panel without re-fetching anything else.
   function renderAlertsOnly() {
     const filtered = state.alertFilter ? state.alerts.filter((alert) => alert.type === state.alertFilter) : state.alerts;
     $('alertsList').innerHTML = filtered.map(renderAlertCard).join('') || '<div class="card">No alerts right now.</div>';
     document.querySelectorAll('[data-read-alert]').forEach((button) => button.addEventListener('click', () => markAlertRead(button.dataset.readAlert)));
   }
 
+  // App entry point: gate on auth, hydrate the user, fetch boot data,
+  // attach all event handlers, then load every tab's data in parallel.
   async function init() {
     if (!requireAuth()) {
       return;

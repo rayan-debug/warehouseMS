@@ -7,8 +7,11 @@ const { signToken, signRefreshToken, refreshSecret, authenticate } = require('..
 const { validate } = require('../middleware/validate');
 const { logActivity } = require('../services/activityLogger');
 
+// Auth routes: email/password login, Google sign-in upsert, token refresh,
+// and a /me endpoint that returns the current user's profile.
 const router = express.Router();
 
+// POST /api/auth/login — verify password with bcrypt; return access + refresh tokens.
 router.post('/login', [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required.'),
   body('password').notEmpty().withMessage('Password is required.'),
@@ -41,6 +44,7 @@ router.post('/login', [
   }
 });
 
+// POST /api/auth/google — create-or-update a user by email/googleId, then issue tokens.
 router.post('/google', [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required.'),
   body('googleId').notEmpty().withMessage('Google ID is required.'),
@@ -70,6 +74,7 @@ router.post('/google', [
   }
 });
 
+// POST /api/auth/refresh — exchange a valid refresh token for a fresh access token.
 router.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -93,6 +98,7 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+// GET /api/auth/me — return the authenticated user's profile (sans password).
 router.get('/me', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(

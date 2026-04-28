@@ -2,8 +2,10 @@ const express = require('express');
 const db = require('../config/db');
 const { authenticate } = require('../middleware/auth');
 
+// Alerts API: list low-stock and expiry alerts; mark single or all as read.
 const router = express.Router();
 
+// Shared SELECT — alerts joined with inventory + product to expose product name.
 const ALERT_SQL = `
   SELECT a.id, a.inventory_id, a.type, a.message, a.is_read, a.created_at,
          p.name AS inventory_name
@@ -12,12 +14,14 @@ const ALERT_SQL = `
   JOIN products  p ON p.id = i.product_id
 `;
 
+// Parse ?page=&limit= from the request, capped at 200 rows per page.
 function parsePage(q) {
   const page  = Math.max(1, parseInt(q.page,  10) || 1);
   const limit = Math.min(200, Math.max(1, parseInt(q.limit, 10) || 50));
   return { page, limit, offset: (page - 1) * limit };
 }
 
+// GET /api/alerts — paginated list, newest first; optional ?type=low|expiry filter.
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { type } = req.query;
@@ -42,6 +46,7 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
+// PATCH /api/alerts/read-all — mark every alert as read in one shot.
 router.patch('/read-all', authenticate, async (req, res, next) => {
   try {
     await db.query('UPDATE alerts SET is_read = true');
@@ -51,6 +56,7 @@ router.patch('/read-all', authenticate, async (req, res, next) => {
   }
 });
 
+// PATCH /api/alerts/:id/read — mark a single alert as read.
 router.patch('/:id/read', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(

@@ -1,3 +1,8 @@
+// Express application factory. Configures middleware (helmet/cors/rate-limit/
+// logging), serves the static frontend, mounts every /api/* router, and
+// installs the not-found + error handlers. Exported for both server.js (local)
+// and api/index.js (Vercel serverless).
+
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const path = require('path');

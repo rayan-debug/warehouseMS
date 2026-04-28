@@ -6,8 +6,11 @@ const { validate } = require('../middleware/validate');
 const { ensureAlert } = require('../services/alertService');
 const { logActivity } = require('../services/activityLogger');
 
+// Inventory API: list stock, receive new shipments, manual corrections,
+// and absolute quantity overrides.
 const router = express.Router();
 
+// Shared SELECT — inventory joined with its product + category, with derived status.
 const INVENTORY_SQL = `
   SELECT i.id, i.product_id,
          p.name AS product_name,
@@ -23,12 +26,14 @@ const INVENTORY_SQL = `
   LEFT JOIN categories c ON c.id = p.category_id
 `;
 
+// Parse ?page=&limit= from the request, capped at 1000 rows per page.
 function parsePage(q) {
   const page  = Math.max(1, parseInt(q.page,  10) || 1);
   const limit = Math.min(1000, Math.max(1, parseInt(q.limit, 10) || 1000));
   return { page, limit, offset: (page - 1) * limit };
 }
 
+// GET /api/inventory — paginated stock list for the inventory table.
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { page, limit, offset } = parsePage(req.query);
@@ -46,6 +51,8 @@ router.get('/', authenticate, async (req, res, next) => {
   }
 });
 
+// POST /api/inventory/:id/stock — receive a shipment: increment quantity and
+// optionally bump the expiry date for the new batch.
 router.post('/:id/stock', authenticate, [
   param('id').isInt({ gt: 0 }).withMessage('Inventory ID must be a positive integer.'),
   body('quantity').isInt({ gt: 0 }).withMessage('A positive quantity is required.'),
@@ -70,7 +77,8 @@ router.post('/:id/stock', authenticate, [
   }
 });
 
-// Manual stock correction — positive or negative relative adjustment (admin only)
+// POST /api/inventory/:id/adjust (admin) — relative correction with audit reason.
+// Quantity is floored at 0; if it falls under threshold, a low-stock alert fires.
 router.post('/:id/adjust', authenticate, authorize('admin'), [
   param('id').isInt({ gt: 0 }).withMessage('Inventory ID must be a positive integer.'),
   body('adjustment').isInt().custom((v) => v !== 0).withMessage('Adjustment must be a non-zero integer.'),
@@ -108,6 +116,7 @@ router.post('/:id/adjust', authenticate, authorize('admin'), [
   }
 });
 
+// PATCH /api/inventory/:id/quantity (admin) — set absolute quantity (overwrite).
 router.patch('/:id/quantity', authenticate, authorize('admin'), [
   param('id').isInt({ gt: 0 }).withMessage('Inventory ID must be a positive integer.'),
   body('quantity').isInt({ min: 0 }).withMessage('A non-negative quantity is required.'),

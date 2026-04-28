@@ -7,8 +7,12 @@ const { validate } = require('../middleware/validate');
 const { generateSalesReportPdf } = require('../services/pdfService');
 const { logActivity } = require('../services/activityLogger');
 
+// Admin API: dashboard stats, user CRUD, and the sales report PDF.
+// All endpoints below the dashboard require role=admin (see router.use guard).
 const router = express.Router();
 
+// Compute headline KPI numbers in parallel: total products, low-stock count,
+// today's revenue, and revenue for the current calendar month.
 async function getStats() {
   const [
     { rows: [{ count: totalProducts }] },
@@ -26,6 +30,8 @@ async function getStats() {
   return { totalProducts, lowStock, todayRevenue, monthRevenue };
 }
 
+// GET /api/admin/dashboard — KPIs + top 5 movers + 5 latest alerts.
+// Available to any authenticated user (gated above the admin-only middleware).
 router.get('/dashboard', authenticate, async (req, res, next) => {
   try {
     const [stats, { rows: topMovingProducts }, { rows: recentAlerts }] = await Promise.all([
@@ -54,8 +60,10 @@ router.get('/dashboard', authenticate, async (req, res, next) => {
   }
 });
 
+// All routes below this guard require an authenticated admin.
 router.use(authenticate, authorize('admin'));
 
+// GET /api/admin/users — list every user (no passwords, ordered by id).
 router.get('/users', async (req, res, next) => {
   try {
     const { rows } = await db.query(
@@ -67,6 +75,8 @@ router.get('/users', async (req, res, next) => {
   }
 });
 
+// POST /api/admin/users — create a user with a bcrypt-hashed password.
+// 23505 = unique constraint violation, mapped to 409 Conflict.
 router.post('/users', [
   body('name').trim().notEmpty().withMessage('Name is required.'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required.'),
@@ -95,6 +105,7 @@ router.post('/users', [
   }
 });
 
+// DELETE /api/admin/users/:id — admins cannot delete themselves; returns 400 if attempted.
 router.delete('/users/:id', async (req, res, next) => {
   if (String(req.params.id) === String(req.user.id)) {
     return res.status(400).json({ success: false, message: 'You cannot delete your own account.' });
@@ -110,6 +121,7 @@ router.delete('/users/:id', async (req, res, next) => {
   }
 });
 
+// GET /api/admin/reports/sales — stream a generated sales summary PDF.
 router.get('/reports/sales', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const [stats, { rows: sales }, { rows: products }] = await Promise.all([

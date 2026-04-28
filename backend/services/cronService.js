@@ -3,8 +3,13 @@ const logger = require('../config/logger');
 const db = require('../config/db');
 const { ensureAlert } = require('./alertService');
 
+// Background expiry-and-low-stock monitor. Runs once at boot and again at 06:00
+// every day, raising 'expiry' alerts for items due within 30 days and 'low'
+// alerts for items below their stock threshold.
 let monitor = null;
 
+// Scan inventory for items expiring in ≤30 days and items at/below threshold,
+// then upsert alerts for each via ensureAlert().
 async function runExpiryCheck() {
   const [{ rows: expiring }, { rows: lowStock }] = await Promise.all([
     db.query(`
@@ -38,6 +43,7 @@ async function runExpiryCheck() {
   logger.info(`Expiry check: ${expiring.length} expiring, ${lowStock.length} low-stock item(s).`);
 }
 
+// Schedule the daily expiry check. Idempotent — calling twice has no effect.
 function startExpiryMonitor() {
   if (monitor) return;
 
