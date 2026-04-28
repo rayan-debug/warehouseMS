@@ -17,46 +17,141 @@ function parsePage(q) {
   return { page, limit, offset: (page - 1) * limit };
 }
 
-// Smart Suggestions feature — postponed.
+// Curated Lebanese-cuisine pairing rules used to seed suggestions when sales
+// history is sparse. Each rule maps a cart-item name pattern to keywords that
+// should be searched in the product catalog.
+const LEBANESE_PAIRINGS = [
+  { match: /hummus|foul|moudammas|mtabbal|mutabbal|baba.?gh?anouj/i, pair: ['pita', 'olive oil', 'pickle', 'mint', 'lemon', 'parsley'] },
+  { match: /tabbouleh|fattoush/i, pair: ['pita', 'lemon', 'olive oil', 'sumac', 'pomegranate'] },
+  { match: /kibbeh|kafta|shawarma|kebab|shish/i, pair: ['ayran', 'laban', 'pita', 'hot.*chili', 'tahini', 'pickle'] },
+  { match: /falafel/i, pair: ['tahini', 'pita', 'pickle', 'parsley', 'tomato'] },
+  { match: /manaqeesh.*zaatar|manakeesh.*zaatar|zaatar bread|zaatar.*stick/i, pair: ['ayran', 'olive', 'tomato', 'cucumber', 'tea', 'mint lemonade'] },
+  { match: /manaqeesh.*jibneh|manakeesh.*jibneh|fatayer.*cheese/i, pair: ['mint lemonade', 'olive', 'ayran', 'tea'] },
+  { match: /fatayer.*spinach/i, pair: ['ayran', 'lemon', 'sumac'] },
+  { match: /maamoul|baklava|knafeh|namoura|barazek|ghraybeh|ladyfinger|nabulsie/i, pair: ['najjar', 'nescafé', 'earl grey', 'tea', 'sage', 'chamomile', 'rose water'] },
+  { match: /pita|markouk|saj|sandwich.*loaf|sourdough|baguette|brioche|whole.?wheat/i, pair: ['hummus', 'labneh', 'olive', 'akkawi', 'halloumi', 'feta', 'butter'] },
+  { match: /akkawi|halloumi|nabulsi|baladi.*cheese|kashkaval|majdouleh|shanklish|mozzarella|gouda|brie|emmental|cheddar|feta/i, pair: ['pita', 'tomato', 'mint', 'watermelon', 'olive', 'arak', 'wine'] },
+  { match: /watermelon|honeydew|cantaloupe/i, pair: ['halloumi', 'akkawi', 'feta'] },
+  { match: /arak/i, pair: ['olive', 'cucumber', 'tomato', 'mint', 'almond', 'pistachio', 'cheese', 'cherry tomato'] },
+  { match: /almaza|gold beer|961 beer|batroun|heineken|amstel|carlsberg|corona|budweiser|laziza/i, pair: ['olive', 'pistachio', 'almond', 'sunflower seeds', 'cheese', 'pita chip'] },
+  { match: /musar|ksara|kefraya|massaya|wine|rosé|blanc/i, pair: ['cheese', 'olive', 'walnut', 'almond', 'fig', 'date', 'baguette'] },
+  { match: /coffee|nescafé|najjar|lavazza|dolce gusto|cappuccino|espresso/i, pair: ['maamoul', 'baklava', 'barazek', 'kaak', 'pound cake', 'biscuit'] },
+  { match: /tea|chamomile|earl grey|green tea|sage|hibiscus|peppermint|cinnamon|licorice|ginger/i, pair: ['maamoul', 'kaak', 'biscuit', 'petit beurre', 'rusk'] },
+  { match: /labneh|laban|yoghurt|ayran|kefir|tzatziki|spreadable/i, pair: ['cucumber', 'mint', 'garlic', 'olive oil', 'pita', 'zaatar'] },
+  { match: /pomegranate/i, pair: ['walnut', 'yoghurt', 'tabbouleh', 'fattoush'] },
+  { match: /sahlab/i, pair: ['pistachio', 'cinnamon', 'rose water', 'coconut'] },
+  { match: /jallab|tamarind|carob|kharroub|mulberry|toot|rose water cordial|orange blossom/i, pair: ['pine nut', 'pistachio', 'almond'] },
+  { match: /eggplant/i, pair: ['tahini', 'tomato', 'olive oil', 'pomegranate'] },
+  { match: /grape leaves|warak/i, pair: ['yoghurt', 'lemon', 'mint', 'rice'] },
+  { match: /molokhia|mloukhieh/i, pair: ['rice', 'lemon', 'onion', 'pita', 'vinegar'] },
+  { match: /lentil/i, pair: ['onion', 'lemon', 'olive oil', 'cumin', 'pita'] },
+  { match: /kishk|freekeh|bulgur|quinoa/i, pair: ['olive oil', 'onion', 'pita', 'yoghurt'] },
+  { match: /chickpea|fava/i, pair: ['lemon', 'cumin', 'olive oil', 'pita', 'tahini'] },
+  { match: /tomato|cucumber|onion|garlic|parsley|mint|coriander|dill|basil|arugula|watercress|purslane/i, pair: ['olive oil', 'lemon', 'pita', 'feta', 'sumac'] },
+  { match: /milk|full.?fat|skimmed|uht|condensed|evaporated|cream/i, pair: ['cornflake', 'biscuit', 'coffee', 'tea', 'cocoa', 'sugar'] },
+  { match: /strawberr|raspberr|blackberr|blueberr|kiwi|mango|papaya|passion|dragon|lychee|fig/i, pair: ['cream', 'yoghurt', 'mint', 'sugar'] },
+  { match: /banana/i, pair: ['milk', 'yoghurt', 'cocoa', 'oat'] },
+  { match: /date|raisin|dried.*apricot|dried.*fig/i, pair: ['walnut', 'almond', 'pistachio', 'tea', 'coffee'] },
+  { match: /walnut|almond|pistachio|hazelnut|pine nut|sunflower|pumpkin seed/i, pair: ['date', 'fig', 'raisin', 'tea', 'coffee', 'arak'] },
+];
+
 // GET /api/sales/suggestions?product_ids=1,2,3
-// Returns products most frequently bought alongside the given cart products.
-// router.get('/suggestions', authenticate, async (req, res, next) => {
-//   try {
-//     const ids = String(req.query.product_ids || '')
-//       .split(',')
-//       .map(Number)
-//       .filter(Boolean);
-//
-//     if (!ids.length) return res.json({ success: true, suggestions: [] });
-//
-//     const { rows } = await query(`
-//       SELECT
-//         p.id,
-//         p.name,
-//         p.price,
-//         i.quantity          AS available,
-//         c.name              AS category_name,
-//         COUNT(DISTINCT si2.sale_id)::int AS score
-//       FROM sale_items si1
-//       JOIN sale_items si2
-//         ON  si2.sale_id    = si1.sale_id
-//         AND si2.product_id <> si1.product_id
-//       JOIN products   p ON p.id = si2.product_id
-//       JOIN inventory  i ON i.product_id = p.id
-//       LEFT JOIN categories c ON c.id = p.category_id
-//       WHERE si1.product_id = ANY($1)
-//         AND si2.product_id <> ALL($1)
-//         AND i.quantity > 0
-//       GROUP BY p.id, p.name, p.price, i.quantity, c.name
-//       ORDER BY score DESC
-//       LIMIT 5
-//     `, [ids]);
-//
-//     return res.json({ success: true, suggestions: rows });
-//   } catch (err) {
-//     return next(err);
-//   }
-// });
+// Returns products most frequently bought alongside the given cart products,
+// padded with curated Lebanese-cuisine pairings when sales history is sparse.
+router.get('/suggestions', authenticate, async (req, res, next) => {
+  try {
+    const ids = String(req.query.product_ids || '')
+      .split(',')
+      .map(Number)
+      .filter(Boolean);
+
+    if (!ids.length) return res.json({ success: true, suggestions: [] });
+
+    // Layer 1 — co-purchase mining from real sales history.
+    const { rows: salesRows } = await query(`
+      SELECT
+        p.id,
+        p.name,
+        p.price,
+        i.quantity          AS available,
+        c.name              AS category_name,
+        COUNT(DISTINCT si2.sale_id)::int AS score
+      FROM sale_items si1
+      JOIN sale_items si2
+        ON  si2.sale_id    = si1.sale_id
+        AND si2.product_id <> si1.product_id
+      JOIN products   p ON p.id = si2.product_id
+      JOIN inventory  i ON i.product_id = p.id
+      LEFT JOIN categories c ON c.id = p.category_id
+      WHERE si1.product_id = ANY($1)
+        AND si2.product_id <> ALL($1)
+        AND i.quantity > 0
+      GROUP BY p.id, p.name, p.price, i.quantity, c.name
+      ORDER BY score DESC
+      LIMIT 5
+    `, [ids]);
+
+    const merged = salesRows.map((row) => ({ ...row, reason: 'sales' }));
+    if (merged.length >= 5) {
+      return res.json({ success: true, suggestions: merged });
+    }
+
+    // Layer 2 — Lebanese-cuisine curated pairings.
+    const { rows: cartRows } = await query(
+      'SELECT id, name FROM products WHERE id = ANY($1)', [ids]
+    );
+
+    const keywordWeight = new Map();
+    for (const cartItem of cartRows) {
+      for (const rule of LEBANESE_PAIRINGS) {
+        if (rule.match.test(cartItem.name)) {
+          for (const kw of rule.pair) {
+            keywordWeight.set(kw, (keywordWeight.get(kw) || 0) + 1);
+          }
+        }
+      }
+    }
+
+    if (keywordWeight.size) {
+      const excludeIds = [...ids, ...merged.map((m) => m.id)];
+      const patterns = [...keywordWeight.keys()].map((k) => `%${k}%`);
+
+      const { rows: pairingRows } = await query(`
+        SELECT
+          p.id,
+          p.name,
+          p.price,
+          i.quantity AS available,
+          c.name     AS category_name
+        FROM products p
+        JOIN inventory i ON i.product_id = p.id
+        LEFT JOIN categories c ON c.id = p.category_id
+        WHERE i.quantity > 0
+          AND p.id <> ALL($1)
+          AND p.name ILIKE ANY($2)
+        LIMIT 60
+      `, [excludeIds, patterns]);
+
+      const scored = pairingRows.map((row) => {
+        let pairScore = 0;
+        const lower = row.name.toLowerCase();
+        for (const [kw, weight] of keywordWeight) {
+          if (lower.includes(kw.toLowerCase())) pairScore += weight;
+        }
+        return { ...row, score: pairScore, reason: 'pairing' };
+      }).sort((a, b) => b.score - a.score);
+
+      for (const row of scored) {
+        if (merged.length >= 5) break;
+        merged.push(row);
+      }
+    }
+
+    return res.json({ success: true, suggestions: merged });
+  } catch (err) {
+    return next(err);
+  }
+});
 
 router.get('/', authenticate, async (req, res, next) => {
   try {

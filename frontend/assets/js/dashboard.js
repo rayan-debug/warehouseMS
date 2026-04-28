@@ -316,7 +316,7 @@
     if (!state.cart.length) {
       $('cartItems').innerHTML = '<p style="color:var(--text-muted);font-size:0.83rem;text-align:center;padding:20px 0">No items added yet</p>';
       $('cartTotal').textContent = formatCurrency(0);
-      // Smart Suggestions postponed — $('smartSuggestions').style.display = 'none';
+      $('smartSuggestions').style.display = 'none';
       return;
     }
 
@@ -336,67 +336,71 @@
     const total = state.cart.reduce((sum, item) => sum + item.quantity * item.price, 0);
     $('cartTotal').textContent = formatCurrency(total);
 
-    // Smart Suggestions postponed — loadSuggestions();
+    loadSuggestions();
   }
 
-  // Smart Suggestions feature — postponed.
-  // let _suggestionDebounce = null;
-  // async function loadSuggestions() {
-  //   clearTimeout(_suggestionDebounce);
-  //   _suggestionDebounce = setTimeout(async () => {
-  //     const ids = state.cart.map((item) => item.product_id).join(',');
-  //     if (!ids) return;
-  //     try {
-  //       const data = await apiRequest(`/sales/suggestions?product_ids=${ids}`);
-  //       renderSuggestions(data.suggestions || []);
-  //     } catch {
-  //       $('smartSuggestions').style.display = 'none';
-  //     }
-  //   }, 350);
-  // }
-  //
-  // function renderSuggestions(suggestions) {
-  //   const panel = $('smartSuggestions');
-  //   const list  = $('suggestionsList');
-  //
-  //   if (!suggestions.length) {
-  //     panel.style.display = 'none';
-  //     return;
-  //   }
-  //
-  //   panel.style.display = 'block';
-  //   list.innerHTML = suggestions.map((s) => `
-  //     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
-  //       <div style="min-width:0">
-  //         <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
-  //         <div style="font-size:0.74rem;color:var(--text-muted)">${formatCurrency(s.price)} · ${s.available} in stock · <span style="color:var(--accent)">×${s.score} sales</span></div>
-  //       </div>
-  //       <button class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px"
-  //         data-suggest-id="${s.id}" data-suggest-name="${s.name}" data-suggest-price="${s.price}" data-suggest-qty="${s.available}">
-  //         + Add
-  //       </button>
-  //     </div>
-  //   `).join('');
-  //
-  //   list.querySelectorAll('[data-suggest-id]').forEach((btn) => {
-  //     btn.addEventListener('click', () => {
-  //       const product = {
-  //         id: Number(btn.dataset.suggestId),
-  //         name: btn.dataset.suggestName,
-  //         price: Number(btn.dataset.suggestPrice),
-  //         quantity: Number(btn.dataset.suggestQty),
-  //       };
-  //       const existing = state.cart.find((item) => item.product_id === product.id);
-  //       if (existing) {
-  //         existing.quantity += 1;
-  //       } else {
-  //         state.cart.push({ product_id: product.id, name: product.name, quantity: 1, price: product.price });
-  //       }
-  //       renderCart();
-  //       toast(`"${product.name}" added to sale.`);
-  //     });
-  //   });
-  // }
+  let _suggestionDebounce = null;
+  async function loadSuggestions() {
+    clearTimeout(_suggestionDebounce);
+    _suggestionDebounce = setTimeout(async () => {
+      const ids = state.cart.map((item) => item.product_id).join(',');
+      if (!ids) return;
+      try {
+        const data = await apiRequest(`/sales/suggestions?product_ids=${ids}`);
+        renderSuggestions(data.suggestions || []);
+      } catch {
+        $('smartSuggestions').style.display = 'none';
+      }
+    }, 350);
+  }
+
+  function renderSuggestions(suggestions) {
+    const panel = $('smartSuggestions');
+    const list  = $('suggestionsList');
+
+    if (!suggestions.length) {
+      panel.style.display = 'none';
+      return;
+    }
+
+    panel.style.display = 'block';
+    list.innerHTML = suggestions.map((s) => {
+      const tag = s.reason === 'pairing'
+        ? '<span style="color:var(--accent)">Lebanese pairing</span>'
+        : `<span style="color:var(--accent)">×${s.score} sales</span>`;
+      return `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="min-width:0">
+          <div style="font-size:0.82rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.name}</div>
+          <div style="font-size:0.74rem;color:var(--text-muted)">${formatCurrency(s.price)} · ${s.available} in stock · ${tag}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px"
+          data-suggest-id="${s.id}" data-suggest-name="${s.name}" data-suggest-price="${s.price}" data-suggest-qty="${s.available}">
+          + Add
+        </button>
+      </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-suggest-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const product = {
+          id: Number(btn.dataset.suggestId),
+          name: btn.dataset.suggestName,
+          price: Number(btn.dataset.suggestPrice),
+          quantity: Number(btn.dataset.suggestQty),
+        };
+        const existing = state.cart.find((item) => item.product_id === product.id);
+        if (existing) {
+          existing.quantity += 1;
+        } else {
+          state.cart.push({ product_id: product.id, name: product.name, quantity: 1, price: product.price });
+        }
+        renderCart();
+        toast(`"${product.name}" added to sale.`);
+      });
+    });
+  }
 
   function openProductModal(id = '') {
     const product = state.products.find((entry) => String(entry.id) === String(id));
